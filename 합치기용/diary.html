@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>여행 다이어리 클럽</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="hero">
+        <div class="hero__copy">
+          <p class="eyebrow">Travel diary social club</p>
+          <h1>local diary</h1>
+          <p>
+            픽셀 아이콘, 사진, 짧은 메모를 조합해 저장하고 공유하는 여행 다이어리 피드입니다.
+          </p>
+        </div>
+
+        <div class="hero__preview" aria-hidden="true">
+          <div class="icon-sheet">
+            <div class="pixel-icon" data-icon="cloud"></div>
+            <div class="pixel-icon" data-icon="home"></div>
+            <div class="pixel-icon" data-icon="camera"></div>
+            <div class="pixel-icon" data-icon="bolt"></div>
+            <div class="pixel-icon" data-icon="swirl"></div>
+            <div class="pixel-icon" data-icon="waves"></div>
+            <div class="pixel-icon" data-icon="music"></div>
+            <div class="pixel-icon" data-icon="tennis"></div>
+            <div class="pixel-icon" data-icon="soccer"></div>
+            <div class="pixel-icon" data-icon="shoe"></div>
+            <div class="pixel-icon" data-icon="flag"></div>
+            <div class="pixel-icon" data-icon="bus"></div>
+            <div class="pixel-icon" data-icon="train"></div>
+            <div class="pixel-icon" data-icon="car"></div>
+            <div class="pixel-icon" data-icon="shop"></div>
+            <div class="pixel-icon" data-icon="parking"></div>
+            <div class="pixel-icon" data-icon="food"></div>
+            <div class="pixel-icon" data-icon="cup"></div>
+            <div class="pixel-icon" data-icon="martini"></div>
+            <div class="pixel-icon" data-icon="burger"></div>
+            <div class="pixel-icon" data-icon="phone"></div>
+            <div class="pixel-icon" data-icon="tv"></div>
+            <div class="pixel-icon" data-icon="gift"></div>
+            <div class="pixel-icon" data-icon="heart"></div>
+            <div class="pixel-icon" data-icon="brokenHeart"></div>
+            <div class="pixel-icon" data-icon="smile"></div>
+            <div class="pixel-icon" data-icon="fire"></div>
+            <div class="pixel-icon" data-icon="sleep"></div>
+            <div class="pixel-icon" data-icon="alert"></div>
+            <div class="pixel-icon" data-icon="moon"></div>
+            <div class="pixel-icon" data-icon="sun"></div>
+            <div class="pixel-icon" data-icon="star"></div>
+            <div class="pixel-icon" data-icon="plane"></div>
+            <div class="pixel-icon" data-icon="building"></div>
+            <div class="pixel-icon" data-icon="hospital"></div>
+            <div class="pixel-icon" data-icon="game"></div>
+            <div class="pixel-icon" data-icon="headphone"></div>
+            <div class="pixel-icon" data-icon="duck"></div>
+            <div class="pixel-icon" data-icon="tower"></div>
+            <div class="pixel-icon" data-icon="ticket"></div>
+            <div class="pixel-icon" data-icon="mail"></div>
+            <div class="pixel-icon" data-icon="clock"></div>
+            <div class="pixel-icon" data-icon="one"></div>
+            <div class="pixel-icon" data-icon="two"></div>
+            <div class="pixel-icon" data-icon="three"></div>
+            <div class="pixel-icon" data-icon="four"></div>
+            <div class="pixel-icon" data-icon="five"></div>
+            <div class="pixel-icon" data-icon="cursor"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="studio">
+        <form class="composer" id="diaryForm">
+          <div class="composer__section">
+            <p class="section-label">기록하기</p>
+            <label>
+              제목
+              <input id="diaryTitle" type="text" placeholder="예: 전주 골목에서 보낸 오후" />
+            </label>
+            <label>
+              장소
+              <input id="diaryPlace" type="text" placeholder="예: 남부시장, 안목해변, 황리단길" />
+            </label>
+            <label>
+              여행 날짜
+              <input id="diaryDate" type="date" />
+            </label>
+            <label class="wide">
+              메모
+              <textarea id="diaryMemo" rows="5" placeholder="좋았던 가게, 산 물건, 다시 가고 싶은 이유를 적어보세요."></textarea>
+            </label>
+            <label>
+              사진
+              <input id="diaryPhoto" type="file" accept="image/*" />
+            </label>
+          </div>
+
+          <div class="composer__section">
+            <p class="section-label">꾸미기</p>
+            <label>
+              기분
+              <select id="diaryMood">
+                <option value="느긋함">느긋함</option>
+                <option value="설렘">설렘</option>
+                <option value="맛있음">맛있음</option>
+                <option value="활기참">활기참</option>
+                <option value="고요함">고요함</option>
+                <option value="반짝임">반짝임</option>
+              </select>
+            </label>
+            <label>
+              색감
+              <select id="diaryTone">
+                <option value="sage">세이지</option>
+                <option value="coral">코랄</option>
+                <option value="sky">스카이</option>
+                <option value="gold">골드</option>
+                <option value="rose">로즈</option>
+                <option value="lavender">라벤더</option>
+                <option value="ink">잉크</option>
+                <option value="mono">모노</option>
+              </select>
+            </label>
+            <label>
+              질감
+              <select id="diaryTexture">
+                <option value="grid">모눈종이</option>
+                <option value="lined">줄노트</option>
+                <option value="kraft">크라프트</option>
+                <option value="linen">린넨</option>
+                <option value="film">필름</option>
+              </select>
+            </label>
+            <label>
+              스티커
+              <select id="diarySticker">
+                <option value="flower">꽃</option>
+                <option value="camera">카메라</option>
+                <option value="stamp">스탬프</option>
+                <option value="ticket">티켓</option>
+                <option value="star">별</option>
+              </select>
+            </label>
+            <label>
+              사진 프레임
+              <select id="diaryFrame">
+                <option value="polaroid">폴라로이드</option>
+                <option value="postcard">엽서</option>
+                <option value="film">필름컷</option>
+                <option value="torn">찢어진 종이</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="composer__actions">
+            <button id="saveDiaryButton" type="submit">다이어리 저장</button>
+            <button id="resetForm" type="button">입력 초기화</button>
+          </div>
+        </form>
+
+        <aside class="live-preview social-preview">
+          <div class="panel-title">
+            <span>live preview</span>
+            <strong>미리보기</strong>
+          </div>
+          <div id="previewCanvas"></div>
+          <div class="preview-actions" aria-hidden="true">
+            <span>♡ 5</span>
+            <span>○</span>
+            <span>⇧</span>
+            <span>•••</span>
+          </div>
+        </aside>
+      </section>
+
+      <section class="library">
+        <div class="library__toolbar">
+          <div>
+            <p class="eyebrow">my archive</p>
+            <h2>내 다이어리</h2>
+          </div>
+          <div class="segmented" aria-label="다이어리 보기">
+            <button class="view-toggle is-active" type="button" data-view="cards">카드</button>
+            <button class="view-toggle" type="button" data-view="calendar">달력</button>
+          </div>
+        </div>
+        <p class="status" id="statusMessage" aria-live="polite"></p>
+        <div class="diary-board" id="diaryBoard" aria-live="polite"></div>
+        <div class="calendar-wrap" id="calendarWrap" hidden>
+          <div class="calendar-controls">
+            <button id="prevMonth" type="button" aria-label="이전 달">‹</button>
+            <strong id="calendarTitle"></strong>
+            <button id="nextMonth" type="button" aria-label="다음 달">›</button>
+          </div>
+          <div class="diary-calendar" id="diaryCalendar"></div>
+        </div>
+      </section>
+
+      <section class="social-feed" aria-labelledby="feedTitle">
+        <div class="social-feed__header">
+          <div>
+            <p class="eyebrow">shared feed</p>
+            <h2 id="feedTitle">다이어리 피드</h2>
+          </div>
+          <p>내가 올린 여행 기록이 SNS 카드처럼 쌓입니다.</p>
+        </div>
+        <div class="feed-list" id="feedList" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>

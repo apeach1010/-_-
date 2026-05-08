@@ -1,0 +1,5728 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+  <title>픽셀 문화 지도</title>
+  <style>
+    @import url("https://cdn.jsdelivr.net/npm/galmuri@latest/dist/galmuri.css");
+
+    :root {
+      color-scheme: dark;
+      --hud-bg: rgba(255, 255, 255, 0.92);
+      --hud-edge: #111111;
+      --text: #111111;
+      --muted: #666666;
+      --accent: #f0002f;
+      --good: #204c9a;
+      --sea: #12b6c9;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: #12b6c9;
+      font-family: "Galmuri11", "DungGeunMo", "NeoDunggeunmo", "Malgun Gothic", "Apple SD Gothic Neo", system-ui, sans-serif;
+      image-rendering: pixelated;
+      -webkit-font-smoothing: none;
+    }
+
+    #app {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+      background: var(--sea);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+      image-rendering: pixelated;
+    }
+
+    .hud {
+      position: fixed;
+      z-index: 4;
+      color: var(--text);
+      pointer-events: none;
+      user-select: none;
+      text-shadow: none;
+    }
+
+    .topbar {
+      top: 16px;
+      left: 16px;
+      display: grid;
+      gap: 6px;
+      width: min(520px, calc(100vw - 32px));
+      min-height: 88px;
+      padding: 16px 18px;
+      border: 3px solid var(--hud-edge);
+      border-radius: 0;
+      background: var(--hud-bg);
+      box-shadow: 8px 8px 0 #111111;
+      backdrop-filter: none;
+    }
+
+    .title {
+      margin: 0;
+      font-size: clamp(20px, 2.4vw, 30px);
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .status-line {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      min-height: 22px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+
+    .status-line b {
+      color: var(--good);
+      font-weight: 700;
+    }
+
+    .city-panel {
+      right: 16px;
+      top: 16px;
+      width: min(310px, calc(100vw - 32px));
+      min-height: 88px;
+      padding: 15px 16px;
+      border: 3px solid var(--hud-edge);
+      border-radius: 0;
+      background: var(--hud-bg);
+      box-shadow: 8px 8px 0 #111111;
+      backdrop-filter: none;
+    }
+
+    .city-panel h2 {
+      margin: 0 0 6px;
+      font-size: 24px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .city-panel p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .toast {
+      left: 50%;
+      bottom: 28px;
+      transform: translateX(-50%);
+      min-width: min(360px, calc(100vw - 40px));
+      padding: 14px 18px;
+      border: 3px solid #111111;
+      border-radius: 0;
+      background: rgba(255, 255, 255, 0.94);
+      text-align: center;
+      font-size: 19px;
+      font-weight: 700;
+      opacity: 0;
+      transition: opacity 180ms ease, transform 180ms ease;
+      box-shadow: 6px 6px 0 #111111;
+      backdrop-filter: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(-4px);
+    }
+
+    .location-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 7;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(46, 52, 45, 0.32);
+      backdrop-filter: blur(4px);
+    }
+
+    .location-modal[hidden] {
+      display: none;
+    }
+
+    .modal-card {
+      width: min(460px, calc(100vw - 48px));
+      border: 1px solid rgba(255, 194, 158, 0.62);
+      border-radius: 8px;
+      background: rgba(36, 42, 35, 0.94);
+      box-shadow: 0 24px 60px rgba(20, 24, 18, 0.34);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    .modal-head {
+      position: relative;
+      padding: 22px 24px 16px;
+      background: linear-gradient(180deg, rgba(255, 207, 218, 0.16), rgba(255, 255, 255, 0));
+    }
+
+    .modal-kicker {
+      color: #ffcfda;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .modal-card h2 {
+      margin: 8px 0 0;
+      font-size: 30px;
+      line-height: 1.05;
+      letter-spacing: 0;
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 36px;
+      height: 36px;
+      border: 1px solid rgba(244, 248, 234, 0.16);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      font-size: 24px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .modal-body {
+      display: grid;
+      gap: 16px;
+      padding: 0 24px 24px;
+    }
+
+    .modal-body p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .modal-actions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .modal-actions button {
+      min-height: 46px;
+      border: 1px solid rgba(244, 248, 234, 0.18);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      font: inherit;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .modal-actions button.primary {
+      border-color: rgba(255, 180, 93, 0.72);
+      background: rgba(255, 180, 93, 0.18);
+    }
+
+    .modal-actions button:disabled {
+      cursor: default;
+      color: rgba(244, 248, 234, 0.52);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .modal-result,
+    .game-feedback {
+      min-height: 24px;
+      color: #ffcfda;
+      font-weight: 700;
+    }
+
+    .game-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 9;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(28, 37, 34, 0.42);
+      backdrop-filter: blur(5px);
+    }
+
+    .game-modal[hidden] {
+      display: none;
+    }
+
+    .game-card {
+      width: min(620px, calc(100vw - 48px));
+      max-height: min(700px, calc(100vh - 48px));
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      border: 1px solid rgba(255, 214, 226, 0.36);
+      border-radius: 8px;
+      background: rgba(31, 43, 35, 0.96);
+      color: var(--text);
+      overflow: hidden;
+      box-shadow: 0 24px 70px rgba(8, 16, 13, 0.42);
+    }
+
+    .game-head {
+      position: relative;
+      padding: 22px 24px 16px;
+      background: linear-gradient(180deg, rgba(255, 180, 93, 0.16), rgba(255, 255, 255, 0));
+    }
+
+    .game-kicker {
+      color: #ffcfda;
+      font-size: 13px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .game-head h2 {
+      margin: 8px 42px 0 0;
+      font-size: 30px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .game-close {
+      position: absolute;
+      top: 14px;
+      right: 14px;
+      width: 36px;
+      height: 36px;
+      border: 1px solid rgba(244, 248, 234, 0.16);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      font-size: 24px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .game-body {
+      display: grid;
+      gap: 14px;
+      overflow-y: auto;
+      padding: 0 24px 24px;
+    }
+
+    .game-meta,
+    .game-prompt,
+    .game-cards {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .game-slots {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .game-slot {
+      min-height: 44px;
+      display: grid;
+      place-items: center;
+      border: 1px dashed rgba(244, 248, 234, 0.24);
+      border-radius: 8px;
+      color: rgba(244, 248, 234, 0.72);
+      background: rgba(255, 255, 255, 0.05);
+      font-size: 13px;
+      font-weight: 800;
+      text-align: center;
+    }
+
+    .game-slot.filled {
+      border-style: solid;
+      border-color: rgba(112, 229, 164, 0.52);
+      color: var(--text);
+      background: rgba(112, 229, 164, 0.14);
+    }
+
+    .game-choices {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .game-choice,
+    .game-reset {
+      min-height: 44px;
+      border: 1px solid rgba(244, 248, 234, 0.16);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .game-choice.done {
+      color: rgba(244, 248, 234, 0.56);
+      background: rgba(112, 229, 164, 0.12);
+      cursor: default;
+    }
+
+    .game-reset {
+      width: fit-content;
+      padding: 0 14px;
+      color: #ffcfda;
+    }
+
+    .inventory-toggle {
+      position: fixed;
+      z-index: 6;
+      top: 16px;
+      right: 342px;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 42px;
+      padding: 9px 13px;
+      border: 1px solid rgba(255, 214, 226, 0.36);
+      border-radius: 8px;
+      background: rgba(34, 46, 36, 0.82);
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 10px 28px rgba(12, 24, 20, 0.24);
+      backdrop-filter: blur(10px);
+    }
+
+    .bag-icon {
+      position: relative;
+      width: 17px;
+      height: 16px;
+      border: 2px solid #ffcfda;
+      border-top-width: 5px;
+      border-radius: 4px 4px 5px 5px;
+    }
+
+    .bag-icon::before {
+      content: "";
+      position: absolute;
+      left: 3px;
+      top: -10px;
+      width: 7px;
+      height: 7px;
+      border: 2px solid #ffcfda;
+      border-bottom: 0;
+      border-radius: 7px 7px 0 0;
+    }
+
+    .inventory-panel {
+      position: fixed;
+      z-index: 8;
+      top: 176px;
+      left: 16px;
+      width: min(360px, calc(100vw - 32px));
+      max-height: min(560px, calc(100vh - 196px));
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 12px;
+      padding: 16px;
+      border: 1px solid rgba(255, 214, 226, 0.34);
+      border-radius: 8px;
+      background: rgba(29, 42, 34, 0.94);
+      color: var(--text);
+      box-shadow: 0 18px 48px rgba(10, 18, 16, 0.34);
+      backdrop-filter: blur(12px);
+    }
+
+    .inventory-panel[hidden] {
+      display: none;
+    }
+
+    .inventory-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .inventory-head h2 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.1;
+      letter-spacing: 0;
+    }
+
+    .inventory-close {
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(244, 248, 234, 0.16);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .inventory-summary {
+      min-height: 22px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.35;
+    }
+
+    .inventory-list {
+      display: grid;
+      gap: 8px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .inventory-item {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr);
+      gap: 10px;
+      min-height: 64px;
+      padding: 10px;
+      border: 1px solid rgba(244, 248, 234, 0.14);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.07);
+      color: var(--text);
+      text-align: left;
+      font: inherit;
+      cursor: default;
+    }
+
+    .inventory-item.is-costume {
+      cursor: pointer;
+    }
+
+    .inventory-item.is-costume:hover,
+    .inventory-item.is-costume:focus-visible,
+    .inventory-item.equipped {
+      border-color: rgba(112, 229, 164, 0.72);
+      background: rgba(112, 229, 164, 0.14);
+      outline: none;
+    }
+
+    .item-mark {
+      display: grid;
+      place-items: center;
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: rgba(255, 180, 93, 0.18);
+      color: #ffcfda;
+      font-size: 20px;
+      font-weight: 900;
+      overflow: hidden;
+    }
+
+    .item-mark img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      image-rendering: auto;
+    }
+
+    .item-name {
+      margin: 0 0 3px;
+      font-size: 15px;
+      font-weight: 900;
+      line-height: 1.2;
+    }
+
+    .item-meta {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .inventory-empty {
+      padding: 16px 10px;
+      border: 1px dashed rgba(244, 248, 234, 0.18);
+      border-radius: 8px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .culture-route-toggle {
+      position: fixed;
+      z-index: 6;
+      right: 16px;
+      bottom: 248px;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 42px;
+      padding: 9px 13px;
+      border: 1px solid rgba(255, 214, 226, 0.36);
+      border-radius: 8px;
+      background: rgba(34, 46, 36, 0.84);
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 900;
+      cursor: pointer;
+      box-shadow: 0 10px 28px rgba(12, 24, 20, 0.24);
+      backdrop-filter: blur(10px);
+    }
+
+    .route-icon {
+      position: relative;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 12px 9px 0 #70e5a4;
+    }
+
+    .route-icon::after {
+      content: "";
+      position: absolute;
+      left: 8px;
+      top: 8px;
+      width: 16px;
+      height: 2px;
+      border-radius: 999px;
+      background: rgba(255, 250, 241, 0.9);
+      transform: rotate(35deg);
+      transform-origin: left center;
+    }
+
+    .diary-launch-toggle {
+      position: fixed;
+      z-index: 6;
+      right: 16px;
+      bottom: 248px;
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 44px;
+      padding: 10px 14px;
+      border: 0;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #fff8cf, #c9f4d4);
+      color: #3f654e;
+      font-weight: 900;
+      box-shadow: 0 14px 30px rgba(44, 84, 65, 0.22), inset 0 -3px 0 rgba(70, 120, 87, 0.14);
+      cursor: pointer;
+    }
+
+    .diary-launch-toggle:hover,
+    .diary-launch-toggle:focus-visible {
+      transform: translateY(-1px);
+      outline: none;
+      box-shadow: 0 18px 34px rgba(44, 84, 65, 0.28), 0 0 0 3px rgba(255, 248, 207, 0.72);
+    }
+
+    .modal-diary-button {
+      position: static;
+      width: 100%;
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      min-height: 46px;
+      border: 1px solid rgba(255, 180, 93, 0.62);
+      border-radius: 8px;
+      background: rgba(255, 180, 93, 0.18);
+      color: var(--text);
+      font: inherit;
+      font-weight: 900;
+      cursor: pointer;
+      transition: all 200ms ease;
+    }
+
+    .modal-diary-button:hover,
+    .modal-diary-button:focus-visible {
+      border-color: rgba(255, 180, 93, 0.82);
+      background: rgba(255, 180, 93, 0.28);
+      outline: none;
+    }
+
+    .diary-launch-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      background:
+        linear-gradient(#ffffff 0 0) 50% 31% / 12px 2px no-repeat,
+        linear-gradient(#ffffff 0 0) 50% 52% / 12px 2px no-repeat,
+        linear-gradient(#ffffff 0 0) 50% 73% / 12px 2px no-repeat,
+        linear-gradient(135deg, #69cf8d, #78b7ff);
+      box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.15);
+    }
+
+    .diary-app-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 12;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      background: rgba(35, 59, 47, 0.44);
+      backdrop-filter: blur(10px);
+    }
+
+    .diary-app-modal[hidden] {
+      display: none;
+    }
+
+    .diary-app-shell {
+      width: min(1180px, calc(100vw - 28px));
+      height: min(820px, calc(100vh - 28px));
+      display: grid;
+      grid-template-rows: auto 1fr;
+      overflow: hidden;
+      border: 3px solid rgba(255, 255, 255, 0.82);
+      border-radius: 30px;
+      background: #fff8df;
+      box-shadow: 0 30px 80px rgba(17, 40, 29, 0.35);
+    }
+
+    .diary-app-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 18px 14px 22px;
+      background: linear-gradient(135deg, #fff4bd, #dff7e5);
+      color: #355845;
+      border-bottom: 1px solid rgba(90, 129, 93, 0.18);
+    }
+
+    .diary-app-head p {
+      margin: 0 0 2px;
+      color: #6f8a78;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .diary-app-head h2 {
+      margin: 0;
+      font-size: clamp(20px, 3vw, 30px);
+      line-height: 1.1;
+    }
+
+    .diary-app-close {
+      width: 42px;
+      height: 42px;
+      border: 0;
+      border-radius: 50%;
+      background: #ffffff;
+      color: #41624d;
+      font-size: 24px;
+      font-weight: 900;
+      box-shadow: 0 8px 18px rgba(57, 88, 65, 0.18);
+      cursor: pointer;
+    }
+
+    .diary-app-frame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      background: #fff8df;
+    }
+
+    .culture-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 10;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(22, 30, 27, 0.46);
+      backdrop-filter: blur(6px);
+    }
+
+    .culture-modal[hidden] {
+      display: none;
+    }
+
+    .culture-panel {
+      width: min(1040px, calc(100vw - 48px));
+      max-height: min(760px, calc(100vh - 48px));
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      border: 1px solid rgba(255, 214, 226, 0.36);
+      border-radius: 8px;
+      background: rgba(29, 42, 34, 0.97);
+      color: var(--text);
+      overflow: hidden;
+      box-shadow: 0 24px 70px rgba(8, 16, 13, 0.44);
+    }
+
+    .culture-head {
+      position: relative;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 22px 24px 16px;
+      background: linear-gradient(180deg, rgba(255, 180, 93, 0.16), rgba(255, 255, 255, 0));
+    }
+
+    .culture-kicker {
+      color: #ffcfda;
+      font-size: 13px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .culture-head h2 {
+      margin: 8px 0 0;
+      font-size: 30px;
+      line-height: 1.08;
+      letter-spacing: 0;
+    }
+
+    .culture-close {
+      flex: 0 0 auto;
+      width: 36px;
+      height: 36px;
+      border: 1px solid rgba(244, 248, 234, 0.16);
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      font-size: 24px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .culture-content {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(300px, 0.95fr);
+      gap: 18px;
+      overflow: hidden;
+      padding: 0 24px 24px;
+    }
+
+    .route-workspace,
+    .diary-workspace {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr);
+      gap: 12px;
+    }
+
+    .route-workspace h3,
+    .diary-workspace h3 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .culture-form,
+    .diary-form {
+      display: grid;
+      gap: 10px;
+    }
+
+    .culture-fields {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .diary-fields {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .culture-field {
+      display: grid;
+      gap: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .culture-field input,
+    .culture-field textarea,
+    .culture-field select {
+      width: 100%;
+      min-height: 40px;
+      border: 1px solid rgba(244, 248, 234, 0.16);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      line-height: 1.35;
+      outline: none;
+    }
+
+    .culture-field input,
+    .culture-field select {
+      padding: 0 11px;
+    }
+
+    .culture-field textarea {
+      min-height: 78px;
+      resize: vertical;
+      padding: 10px 11px;
+    }
+
+    .culture-field select option {
+      color: #1b241d;
+    }
+
+    .culture-field.full {
+      grid-column: 1 / -1;
+    }
+
+    .culture-submit,
+    .diary-submit,
+    .recommendation-action,
+    .diary-delete {
+      min-height: 42px;
+      border: 1px solid rgba(255, 180, 93, 0.62);
+      border-radius: 8px;
+      background: rgba(255, 180, 93, 0.16);
+      color: var(--text);
+      font: inherit;
+      font-size: 14px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .culture-status,
+    .diary-status {
+      min-height: 20px;
+      margin: 0;
+      color: #ffcfda;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.35;
+    }
+
+    .culture-results,
+    .diary-list {
+      min-height: 0;
+      display: grid;
+      align-content: start;
+      gap: 10px;
+      overflow-y: auto;
+      padding-right: 3px;
+    }
+
+    .recommendation-card,
+    .diary-card,
+    .culture-empty {
+      border: 1px solid rgba(244, 248, 234, 0.14);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    .recommendation-card,
+    .diary-card {
+      display: grid;
+      gap: 9px;
+      padding: 12px;
+    }
+
+    .recommendation-top,
+    .diary-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .recommendation-title,
+    .diary-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 900;
+      line-height: 1.25;
+    }
+
+    .recommendation-meta,
+    .diary-meta,
+    .recommendation-desc,
+    .diary-memo {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+
+    .culture-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .culture-tag {
+      padding: 4px 7px;
+      border-radius: 999px;
+      background: rgba(112, 229, 164, 0.13);
+      color: #dff8d3;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 1;
+    }
+
+    .recommendation-action {
+      justify-self: start;
+      min-height: 34px;
+      padding: 0 10px;
+      font-size: 12px;
+    }
+
+    .diary-delete {
+      min-height: 30px;
+      padding: 0 8px;
+      border-color: rgba(244, 248, 234, 0.16);
+      background: rgba(255, 255, 255, 0.08);
+      color: #ffcfda;
+      font-size: 12px;
+    }
+
+    .diary-photo {
+      width: 100%;
+      max-height: 150px;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+
+    .culture-empty {
+      padding: 16px 12px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .route-app {
+      place-items: stretch;
+      padding: 0;
+      overflow-y: auto;
+      background:
+        radial-gradient(circle at 12% 14%, rgba(255, 238, 185, 0.95) 0 120px, transparent 121px),
+        linear-gradient(135deg, #f8f3dd 0%, #dff3df 48%, #d8eef8 100%);
+      backdrop-filter: none;
+    }
+
+    .route-app .culture-panel {
+      width: 100vw;
+      min-height: 100vh;
+      max-height: none;
+      display: grid;
+      grid-template-rows: auto auto 1fr;
+      border: 0;
+      border-radius: 0;
+      background: transparent;
+      color: #34403a;
+      box-shadow: none;
+      overflow: visible;
+      font-family: Pretendard, "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+    }
+
+    .route-app-header {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(240px, 370px) auto;
+      gap: 18px;
+      align-items: center;
+      padding: 26px 28px 18px;
+      background: transparent;
+    }
+
+    .route-brand {
+      display: flex;
+      gap: 14px;
+      align-items: center;
+      min-width: 0;
+    }
+
+    .route-brand-mark {
+      flex: 0 0 auto;
+      width: 58px;
+      height: 58px;
+      display: grid;
+      place-items: center;
+      border: 2px solid rgba(116, 154, 103, 0.26);
+      border-radius: 20px;
+      background: #fff8cf;
+      color: #2d5942;
+      box-shadow: 0 10px 24px rgba(106, 134, 92, 0.18);
+      font-size: 28px;
+      font-weight: 950;
+    }
+
+    .route-eyebrow,
+    .diary-eyebrow {
+      margin: 0;
+      color: #204c9a;
+      font-size: 12px;
+      font-weight: 950;
+      line-height: 1;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    .route-app-header h2 {
+      margin: 8px 0 6px;
+      color: #2d5942;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .route-app-header p {
+      margin: 0;
+      color: #5e755f;
+      line-height: 1.5;
+      font-weight: 650;
+      word-break: keep-all;
+    }
+
+    .route-note {
+      padding: 14px 16px;
+      border: 1px solid rgba(114, 149, 117, 0.2);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.72);
+      color: #58715f;
+      box-shadow: 0 12px 28px rgba(72, 110, 92, 0.12);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .route-app .culture-close {
+      align-self: start;
+      width: 44px;
+      height: 44px;
+      border: 0;
+      border-radius: 16px;
+      background: #fff8cf;
+      color: #486044;
+      box-shadow: 0 8px 18px rgba(91, 122, 83, 0.16), inset 0 -2px 0 rgba(121, 145, 89, 0.12);
+      font-size: 26px;
+      font-weight: 900;
+    }
+
+    .route-nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 0 28px 14px;
+    }
+
+    .route-nav button {
+      min-height: 44px;
+      border: 0;
+      border-radius: 16px;
+      padding: 0 16px;
+      background: #fff8cf;
+      color: #486044;
+      box-shadow: 0 8px 18px rgba(91, 122, 83, 0.16), inset 0 -2px 0 rgba(121, 145, 89, 0.12);
+      font: inherit;
+      font-weight: 950;
+      cursor: pointer;
+    }
+
+    .route-nav button.is-active {
+      background: #6abf8a;
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(70, 151, 99, 0.26), inset 0 -2px 0 rgba(34, 105, 61, 0.2);
+    }
+
+    .route-app-content {
+      min-height: 0;
+      padding: 0 20px 20px;
+    }
+
+    .culture-view {
+      min-height: 0;
+    }
+
+    .culture-view[hidden] {
+      display: none;
+    }
+
+    .map-layout {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: minmax(420px, 1fr) 410px;
+      gap: 18px;
+    }
+
+    .route-map-main,
+    .route-board {
+      min-width: 0;
+    }
+
+    .route-map-main {
+      display: grid;
+      gap: 14px;
+    }
+
+    .route-control-card,
+    .route-panel {
+      border: 1px solid rgba(141, 174, 129, 0.22);
+      border-radius: 24px;
+      background: rgba(255, 252, 239, 0.92);
+      box-shadow: 0 16px 38px rgba(78, 118, 97, 0.13);
+    }
+
+    .route-control-card {
+      order: 2;
+      margin-bottom: 0;
+      padding: 16px;
+    }
+
+    .route-app .culture-form {
+      display: grid;
+      gap: 10px;
+    }
+
+    .route-app .culture-fields {
+      display: grid;
+      grid-template-columns: 84px minmax(180px, 1fr) 84px minmax(180px, 1fr);
+      gap: 10px;
+      align-items: center;
+    }
+
+    .route-app .culture-field {
+      display: contents;
+      color: #60745f;
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .route-app .culture-field span {
+      align-self: center;
+    }
+
+    .route-app .culture-field input,
+    .route-app .culture-field textarea,
+    .route-app .culture-field select {
+      min-height: 44px;
+      border: 2px solid #d8e8d2;
+      border-radius: 16px;
+      background: #fffef7;
+      color: #34403a;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+      font-size: 14px;
+    }
+
+    .route-app .culture-field input:focus,
+    .route-app .culture-field textarea:focus,
+    .route-app .culture-field select:focus {
+      border-color: #8ac295;
+      box-shadow: 0 0 0 4px rgba(138, 194, 149, 0.18);
+    }
+
+    .route-app .culture-submit {
+      justify-self: start;
+      min-height: 44px;
+      border: 0;
+      border-radius: 16px;
+      padding: 0 16px;
+      background: #6abf8a;
+      color: #fff;
+      box-shadow: 0 10px 20px rgba(70, 151, 99, 0.26), inset 0 -2px 0 rgba(34, 105, 61, 0.2);
+      font-weight: 950;
+    }
+
+    .route-app .culture-status {
+      min-height: auto;
+      margin: 0;
+      padding: 12px 14px;
+      border: 1px solid #d8e8d2;
+      border-radius: 16px;
+      background: #f1f8ec;
+      color: #557057;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.45;
+    }
+
+    .culture-2d-map-shell {
+      position: relative;
+      order: 1;
+      height: calc(100vh - 336px);
+      min-height: 500px;
+      border: 5px solid rgba(255, 255, 255, 0.86);
+      border-radius: 26px;
+      background: #d8eef8;
+      overflow: hidden;
+      box-shadow: 0 20px 46px rgba(68, 107, 93, 0.2);
+    }
+
+    .culture-2d-map {
+      width: 100%;
+      height: 100%;
+      display: block;
+      background:
+        linear-gradient(90deg, rgba(255, 255, 255, 0.18) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(255, 255, 255, 0.18) 1px, transparent 1px),
+        #d8eef8;
+      background-size: 64px 64px;
+    }
+
+    .map-sea-label {
+      fill: rgba(63, 111, 130, 0.52);
+      font-size: 18px;
+      font-weight: 900;
+    }
+
+    .map-land {
+      fill: #a8d98d;
+      stroke: rgba(76, 126, 84, 0.62);
+      stroke-width: 5;
+    }
+
+    .map-island {
+      fill: #b6e39a;
+      stroke: rgba(76, 126, 84, 0.58);
+      stroke-width: 3;
+    }
+
+    .map-route {
+      fill: none;
+      stroke: #ef896f;
+      stroke-width: 6;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      stroke-dasharray: 12 10;
+    }
+
+    .map-city-dot {
+      fill: #fffef7;
+      stroke: #6ba879;
+      stroke-width: 3;
+    }
+
+    .map-city-label {
+      fill: #315f45;
+      font-size: 14px;
+      font-weight: 950;
+      paint-order: stroke;
+      stroke: rgba(255, 255, 255, 0.86);
+      stroke-width: 4px;
+    }
+
+    .map-route-marker {
+      cursor: pointer;
+    }
+
+    .map-route-marker circle {
+      fill: #76b7d8;
+      stroke: #fff;
+      stroke-width: 5;
+      filter: drop-shadow(0 8px 8px rgba(64, 88, 66, 0.22));
+    }
+
+    .map-route-marker text {
+      fill: #fff;
+      font-size: 17px;
+      font-weight: 950;
+      text-anchor: middle;
+      dominant-baseline: central;
+      pointer-events: none;
+    }
+
+    .map-route-marker.start circle {
+      fill: #65b982;
+    }
+
+    .map-route-marker.end circle {
+      fill: #ef896f;
+    }
+
+    .route-board {
+      display: grid;
+      gap: 14px;
+      align-content: start;
+    }
+
+    .route-panel {
+      padding: 16px;
+    }
+
+    .route-panel h3 {
+      margin: 0 0 12px;
+      color: #315f45;
+      font-size: 19px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    .treasure-summary {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .summary-card {
+      padding: 13px;
+      border: 1px solid #dcebd5;
+      border-radius: 18px;
+      background: #f2f9ee;
+    }
+
+    .summary-card span {
+      display: block;
+      margin-bottom: 5px;
+      color: #6c8069;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .summary-card strong {
+      color: #2d5942;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .route-app .culture-results {
+      max-height: calc(100vh - 310px);
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .route-app .recommendation-card {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) 68px;
+      gap: 12px;
+      padding: 14px;
+      border: 2px solid #e1ecd9;
+      border-radius: 20px;
+      background: #fffef7;
+      box-shadow: 0 8px 18px rgba(93, 127, 98, 0.1);
+    }
+
+    .route-rank {
+      width: 38px;
+      height: 38px;
+      display: grid;
+      place-items: center;
+      border-radius: 14px;
+      background: #7bcf98;
+      color: #fff;
+      box-shadow: inset 0 -2px 0 rgba(48, 127, 77, 0.22);
+      font-size: 16px;
+      font-weight: 950;
+    }
+
+    .route-app .recommendation-title {
+      margin: 0 0 5px;
+      color: #34403a;
+      font-size: 16px;
+      font-weight: 950;
+    }
+
+    .route-app .recommendation-meta,
+    .route-app .recommendation-desc {
+      color: #637664;
+      font-size: 13px;
+    }
+
+    .route-app .culture-tag {
+      background: #edf7e7;
+      color: #58715f;
+      font-size: 12px;
+    }
+
+    .hidden-score {
+      align-self: center;
+      padding: 8px;
+      border-radius: 16px;
+      background: #fff8cf;
+      color: #765c12;
+      text-align: center;
+    }
+
+    .hidden-score strong {
+      display: block;
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .hidden-score span {
+      font-size: 11px;
+      font-weight: 900;
+    }
+
+    .route-app .recommendation-action {
+      grid-column: 2 / 4;
+      justify-self: start;
+      min-height: 34px;
+      border: 0;
+      border-radius: 14px;
+      padding: 0 12px;
+      background: #fff8cf;
+      color: #486044;
+      box-shadow: 0 8px 18px rgba(91, 122, 83, 0.16), inset 0 -2px 0 rgba(121, 145, 89, 0.12);
+    }
+
+    .diary-view {
+      min-height: 0;
+      padding: 18px 0 52px;
+      background: #fff;
+      color: #111;
+      font-family: "Galmuri11", "DungGeunMo", "Apple SD Gothic Neo", "Segoe UI", sans-serif;
+      image-rendering: pixelated;
+    }
+
+    .diary-page-shell {
+      width: min(960px, calc(100% - 20px));
+      margin: 0 auto;
+    }
+
+    .diary-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .diary-hero h2 {
+      margin: 8px 0 10px;
+      color: #111;
+      font-size: clamp(38px, 7vw, 72px);
+      line-height: 1;
+      letter-spacing: 0;
+    }
+
+    .diary-hero p {
+      max-width: 620px;
+      margin: 0;
+      color: #666;
+      line-height: 1.55;
+      word-break: keep-all;
+    }
+
+    .icon-strip {
+      display: grid;
+      grid-template-columns: repeat(12, minmax(20px, 1fr));
+      gap: 10px;
+      padding: 18px;
+      border-radius: 30px;
+      background: #f2f2f2;
+    }
+
+    .pixel-tile {
+      aspect-ratio: 1;
+      min-width: 22px;
+      border-radius: 6px;
+      background: #111;
+      box-shadow:
+        8px 0 0 #f0002f,
+        16px 0 0 #214f9b,
+        0 8px 0 #6bb852,
+        8px 8px 0 #f09a19,
+        16px 8px 0 #111;
+    }
+
+    .diary-studio {
+      display: grid;
+      grid-template-columns: minmax(280px, 0.86fr) minmax(340px, 1.14fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .route-app .diary-form {
+      display: grid;
+      gap: 18px;
+    }
+
+    .diary-form-section {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .diary-view .culture-field {
+      display: grid;
+      gap: 8px;
+      color: #111;
+      font-size: 13px;
+      font-weight: 950;
+      text-transform: uppercase;
+    }
+
+    .diary-view .culture-field.full {
+      grid-column: 1 / -1;
+    }
+
+    .diary-view input,
+    .diary-view select,
+    .diary-view textarea {
+      min-height: 46px;
+      border: 0;
+      border-radius: 14px;
+      padding: 10px 12px;
+      background: #f2f2f2;
+      color: #111;
+      box-shadow: none;
+    }
+
+    .diary-view input:focus,
+    .diary-view select:focus,
+    .diary-view textarea:focus {
+      outline: 2px solid #111;
+    }
+
+    .diary-actions-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    .diary-actions-row button,
+    .diary-delete {
+      min-height: 40px;
+      border: 0;
+      border-radius: 999px;
+      background: #eee;
+      color: #111;
+      font: inherit;
+      font-weight: 950;
+      cursor: pointer;
+    }
+
+    .diary-actions-row .diary-submit {
+      background: #f0002f;
+    }
+
+    .diary-status {
+      margin: 0;
+      min-height: 22px;
+      color: #204c9a;
+      font-size: 13px;
+      font-weight: 950;
+    }
+
+    .diary-live-preview {
+      position: sticky;
+      top: 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .diary-panel-title {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .diary-panel-title strong {
+      color: #111;
+      font-size: 18px;
+    }
+
+    .diary-spread {
+      --diary-accent: #204c9a;
+      --diary-soft: #e8f0ff;
+      position: relative;
+      min-height: 420px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      border: 3px solid #111;
+      background: #fff;
+      box-shadow: 8px 8px 0 color-mix(in srgb, var(--diary-accent) 58%, #111);
+      overflow: hidden;
+    }
+
+    .diary-spread::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(90deg, rgba(17, 17, 17, 0.05) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(17, 17, 17, 0.05) 1px, transparent 1px),
+        linear-gradient(135deg, color-mix(in srgb, var(--diary-soft) 86%, #fff), #fff 72%);
+      background-size: 18px 18px, 18px 18px, auto;
+    }
+
+    .diary-spread--sage { --diary-accent: #6bb852; --diary-soft: #eaf6df; }
+    .diary-spread--coral { --diary-accent: #e4482f; --diary-soft: #ffe4dc; }
+    .diary-spread--sky { --diary-accent: #204c9a; --diary-soft: #e8f0ff; }
+    .diary-spread--gold { --diary-accent: #f09a19; --diary-soft: #fff1d3; }
+    .diary-spread--rose { --diary-accent: #f0002f; --diary-soft: #ffe1e8; }
+    .diary-spread--lavender { --diary-accent: #8b62b0; --diary-soft: #f0e7ff; }
+    .diary-spread--ink,
+    .diary-spread--mono { --diary-accent: #111; --diary-soft: #f2f2f2; }
+
+    .diary-texture--lined::before {
+      background:
+        repeating-linear-gradient(0deg, transparent 0 31px, rgba(17, 17, 17, 0.12) 32px),
+        linear-gradient(135deg, var(--diary-soft), #fff 72%);
+    }
+
+    .diary-texture--kraft::before {
+      background: linear-gradient(135deg, color-mix(in srgb, var(--diary-soft) 60%, #ead2a7), #f8edcf 72%);
+    }
+
+    .diary-texture--film::before {
+      background:
+        repeating-linear-gradient(90deg, rgba(17, 17, 17, 0.16) 0 12px, transparent 12px 24px),
+        linear-gradient(135deg, var(--diary-soft), #fff 70%);
+    }
+
+    .diary-page {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      grid-template-rows: auto auto minmax(0, 1fr) auto;
+      gap: 12px;
+      padding: 22px;
+      min-width: 0;
+    }
+
+    .diary-page--right {
+      border-left: 3px solid #111;
+    }
+
+    .hand-label {
+      margin: 0;
+      color: var(--diary-accent);
+      font-size: 12px;
+      font-weight: 950;
+    }
+
+    .diary-page h3 {
+      margin: 0;
+      color: var(--diary-accent);
+      font-size: clamp(22px, 4vw, 38px);
+      line-height: 1;
+      letter-spacing: 0;
+      word-break: keep-all;
+    }
+
+    .diary-line {
+      margin: 0;
+      color: #111;
+      font-size: 14px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: keep-all;
+    }
+
+    .photo-frame {
+      display: grid;
+      place-items: center;
+      min-height: 150px;
+      border: 3px solid #111;
+      background: #fff;
+      transform: rotate(-1.5deg);
+    }
+
+    .photo-frame img {
+      width: 100%;
+      height: 170px;
+      object-fit: cover;
+    }
+
+    .sample-photo {
+      color: var(--diary-accent);
+      font-size: 28px;
+      font-weight: 950;
+    }
+
+    .boarding-pass {
+      display: grid;
+      gap: 8px;
+      padding: 16px;
+      border: 3px solid #111;
+      background: #fff;
+      box-shadow: 6px 6px 0 color-mix(in srgb, var(--diary-accent) 60%, #111);
+    }
+
+    .boarding-pass span,
+    .boarding-pass small {
+      color: #666;
+      font-size: 12px;
+      font-weight: 950;
+    }
+
+    .boarding-pass strong {
+      color: var(--diary-accent);
+      font-size: 24px;
+      line-height: 1;
+    }
+
+    .diary-archive {
+      margin-top: 28px;
+    }
+
+    .diary-archive h3 {
+      margin: 0 0 14px;
+      color: #111;
+      font-size: 28px;
+      letter-spacing: 0;
+    }
+
+    .diary-list {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      overflow: visible;
+    }
+
+    .diary-card {
+      border: 0;
+      background: transparent;
+      padding: 0;
+    }
+
+    .diary-card .diary-spread {
+      min-height: 300px;
+      transform: scale(0.94);
+      transform-origin: top left;
+    }
+
+    .diary-card-tools {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      margin-bottom: 8px;
+    }
+
+    .minimap {
+      right: 16px;
+      bottom: 16px;
+      width: 178px;
+      height: 218px;
+      border: 1px solid var(--hud-edge);
+      border-radius: 8px;
+      background: rgba(18, 24, 28, 0.7);
+      backdrop-filter: blur(10px);
+    }
+
+    .labels {
+      position: fixed;
+      inset: 0;
+      z-index: 3;
+      pointer-events: none;
+      overflow: hidden;
+    }
+
+    .label {
+      position: absolute;
+      min-width: 34px;
+      transform: translate(-50%, -50%);
+      color: #fff7cd;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1;
+      text-align: center;
+      white-space: nowrap;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+    }
+
+    .label.hidden {
+      display: none;
+    }
+
+    .diary-map-label {
+      position: absolute;
+      z-index: 5;
+      max-width: 210px;
+      transform: translate(-50%, -100%);
+      padding: 8px 10px;
+      border: 3px solid #111;
+      background: rgba(255, 255, 255, 0.94);
+      color: #111;
+      box-shadow: 5px 5px 0 #111;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 950;
+      line-height: 1.18;
+      text-align: center;
+      white-space: normal;
+      pointer-events: auto;
+      cursor: pointer;
+    }
+
+    .diary-map-label.hidden {
+      display: none;
+    }
+
+    .diary-map-label:hover {
+      background: #fff1d3;
+    }
+
+    .diary-map-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 9;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(255, 255, 255, 0.55);
+    }
+
+    .diary-map-modal[hidden] {
+      display: none;
+    }
+
+    .diary-map-card {
+      position: relative;
+      width: min(860px, calc(100vw - 36px));
+      max-height: calc(100vh - 36px);
+      overflow: auto;
+      border: 3px solid #111;
+      background: #fff;
+      box-shadow: 10px 10px 0 #111;
+      color: #111;
+    }
+
+    .diary-map-head {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 3px solid #111;
+      background: #fff;
+    }
+
+    .diary-map-head strong {
+      font-size: 17px;
+      line-height: 1.2;
+    }
+
+    .diary-map-close {
+      width: 34px;
+      height: 34px;
+      border: 3px solid #111;
+      background: #f2f2f2;
+      color: #111;
+      font: inherit;
+      font-size: 22px;
+      font-weight: 950;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .diary-map-body {
+      padding: 18px;
+    }
+
+    @media (min-width: 761px) and (max-width: 1100px) {
+      .inventory-toggle {
+        top: 124px;
+        right: auto;
+        left: 16px;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .topbar {
+        min-height: 78px;
+        padding: 13px 14px;
+      }
+
+      .city-panel {
+        top: auto;
+        right: auto;
+        left: 16px;
+        bottom: 16px;
+        width: calc(100vw - 176px);
+        min-width: 142px;
+        min-height: 76px;
+        padding: 12px 13px;
+      }
+
+      .city-panel h2 {
+        font-size: 18px;
+      }
+
+      .city-panel p {
+        font-size: 12px;
+      }
+
+      .minimap {
+        right: auto;
+        left: 16px;
+        bottom: 108px;
+        width: 128px;
+        height: 156px;
+      }
+
+      .culture-route-toggle,
+      .diary-launch-toggle {
+        right: auto;
+        left: 16px;
+        bottom: 274px;
+        min-height: 38px;
+        padding: 8px 11px;
+        font-size: 13px;
+      }
+
+      .diary-app-modal {
+        padding: 10px;
+      }
+
+      .diary-app-shell {
+        width: calc(100vw - 20px);
+        height: calc(100vh - 20px);
+        border-radius: 22px;
+      }
+
+      .culture-modal {
+        padding: 12px;
+      }
+
+      .culture-panel {
+        width: calc(100vw - 24px);
+        max-height: calc(100vh - 24px);
+      }
+
+      .culture-head {
+        padding: 18px 18px 12px;
+      }
+
+      .culture-head h2 {
+        font-size: 22px;
+      }
+
+      .culture-content {
+        grid-template-columns: 1fr;
+        overflow-y: auto;
+        padding: 0 18px 18px;
+      }
+
+      .route-workspace,
+      .diary-workspace {
+        overflow: visible;
+      }
+
+      .culture-fields,
+      .diary-fields {
+        grid-template-columns: 1fr;
+      }
+
+      .culture-results,
+      .diary-list {
+        overflow: visible;
+      }
+
+      .route-app .culture-panel {
+        width: 100vw;
+        min-height: 100vh;
+        max-height: none;
+      }
+
+      .route-app-header {
+        grid-template-columns: 1fr auto;
+        padding: 20px 16px 12px;
+      }
+
+      .route-note {
+        grid-column: 1 / -1;
+      }
+
+      .route-nav {
+        padding: 0 16px 12px;
+      }
+
+      .route-app-content {
+        padding: 0 12px 14px;
+      }
+
+      .map-layout,
+      .diary-studio {
+        grid-template-columns: 1fr;
+      }
+
+      .route-app .culture-fields,
+      .diary-form-section,
+      .diary-actions-row,
+      .diary-list {
+        grid-template-columns: 1fr;
+      }
+
+      .route-app .culture-field {
+        display: grid;
+      }
+
+      .culture-2d-map-shell {
+        height: 420px;
+        min-height: 420px;
+      }
+
+      .route-app .recommendation-card {
+        grid-template-columns: 38px minmax(0, 1fr);
+      }
+
+      .hidden-score {
+        grid-column: 2;
+        text-align: left;
+      }
+
+      .route-app .recommendation-action {
+        grid-column: 2;
+      }
+
+      .diary-live-preview {
+        position: static;
+      }
+
+      .diary-spread {
+        grid-template-columns: 1fr;
+      }
+
+      .diary-page--right {
+        border-top: 3px solid #111;
+        border-left: 0;
+      }
+
+      .toast {
+        bottom: 220px;
+        min-width: min(320px, calc(100vw - 32px));
+        font-size: 16px;
+      }
+
+      .inventory-toggle {
+        top: 104px;
+        right: auto;
+        left: 16px;
+        min-height: 38px;
+        padding: 8px 11px;
+        font-size: 13px;
+      }
+
+      .inventory-panel {
+        top: 150px;
+        max-height: calc(100vh - 168px);
+      }
+
+      .inventory-head h2 {
+        font-size: 20px;
+      }
+
+      .game-card {
+        width: min(420px, calc(100vw - 32px));
+      }
+
+      .game-head {
+        padding: 18px 18px 12px;
+      }
+
+      .game-head h2 {
+        font-size: 22px;
+      }
+
+      .game-body {
+        padding: 0 18px 18px;
+      }
+
+      .game-slots,
+      .game-choices {
+        grid-template-columns: 1fr;
+      }
+
+      .modal-actions {
+        grid-template-columns: 1fr;
+      }
+
+      .modal-diary-button {
+        min-height: 42px;
+        font-size: 14px;
+      }
+
+      .diary-launch-icon {
+        width: 20px;
+        height: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main id="app" aria-label="대한민국 3D 월드맵">
+    <div class="labels" id="labels"></div>
+    <section class="hud topbar" aria-live="polite">
+      <h1 class="title">대한민국 3D 월드맵</h1>
+      <div class="status-line">
+        <span>방문 <b id="visitedCount">0/19</b></span>
+        <span>현재 <b id="currentCity">서울</b></span>
+        <span>속도 <b id="speedValue">0</b></span>
+      </div>
+    </section>
+    <section class="hud city-panel" id="cityPanel" aria-live="polite">
+      <h2 id="cityName">서울</h2>
+      <p id="cityMeta">수도권 출발 지점</p>
+    </section>
+    <canvas class="hud minimap" id="minimap" width="178" height="218" aria-label="미니맵"></canvas>
+    <div class="hud toast show" id="toast">광주에서 출발</div>
+    <section class="diary-app-modal" id="diaryAppModal" hidden>
+      <div class="diary-app-shell" role="dialog" aria-modal="true" aria-labelledby="diaryAppTitle">
+        <header class="diary-app-head">
+          <div>
+            <p>Travel diary</p>
+            <h2 id="diaryAppTitle">여행 다이어리</h2>
+          </div>
+          <button class="diary-app-close" id="diaryAppClose" type="button" aria-label="다이어리 닫기">×</button>
+        </header>
+        <iframe class="diary-app-frame" id="diaryAppFrame" title="여행 다이어리" data-src="./diary.html"></iframe>
+      </div>
+    </section>
+    <section class="location-modal" id="locationModal" hidden>
+      <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modalCityName">
+        <div class="modal-head">
+          <div class="modal-kicker">지역 상호작용</div>
+          <h2 id="modalCityName">서울</h2>
+          <button class="modal-close" id="modalClose" type="button" aria-label="닫기">×</button>
+        </div>
+        <div class="modal-body">
+          <p id="modalDescription">수도권 출발 지점</p>
+          <div class="modal-actions">
+            <button class="primary" id="visitAction" type="button">방문 기록</button>
+            <button id="questAction" type="button">지역 미션</button>
+          </div>
+          <p class="modal-result" id="modalResult"></p>
+          <button class="modal-diary-button" id="diaryLaunchToggle" type="button" aria-expanded="false" aria-controls="diaryAppModal">
+            <span class="diary-launch-icon" aria-hidden="true"></span>
+            <span>다이어리</span>
+          </button>
+        </div>
+      </div>
+    </section>
+    <section class="diary-map-modal" id="diaryMapModal" hidden>
+      <article class="diary-map-card" role="dialog" aria-modal="true" aria-labelledby="diaryMapTitle">
+        <header class="diary-map-head">
+          <strong id="diaryMapTitle">다이어리 기록</strong>
+          <button class="diary-map-close" id="diaryMapClose" type="button" aria-label="다이어리 닫기">×</button>
+        </header>
+        <div class="diary-map-body" id="diaryMapBody"></div>
+      </article>
+    </section>
+    <section class="game-modal" id="gameModal" hidden>
+      <div class="game-card" role="dialog" aria-modal="true" aria-labelledby="gameTitle">
+        <div class="game-head">
+          <div class="game-kicker" id="gameKicker">전통문화 미니게임</div>
+          <h2 id="gameTitle">지역 미니게임</h2>
+          <button class="game-close" id="gameClose" type="button" aria-label="미니게임 닫기">×</button>
+        </div>
+        <div class="game-body">
+          <p class="game-meta" id="gameMeta"></p>
+          <p class="game-prompt" id="gamePrompt"></p>
+          <div class="game-slots" id="gameSlots"></div>
+          <div class="game-choices" id="gameChoices"></div>
+          <button class="game-reset" id="gameReset" type="button">다시 배치</button>
+          <p class="game-cards" id="gameCards"></p>
+          <p class="game-feedback" id="gameFeedback"></p>
+        </div>
+      </div>
+    </section>
+    <button class="inventory-toggle" id="inventoryToggle" type="button" aria-expanded="false" aria-controls="inventoryPanel">
+      <span class="bag-icon" aria-hidden="true"></span>
+      <span>인벤토리 <b id="inventoryButtonCount">0</b></span>
+    </button>
+    <aside class="inventory-panel" id="inventoryPanel" aria-labelledby="inventoryTitle" hidden>
+      <div class="inventory-head">
+        <h2 id="inventoryTitle">인벤토리</h2>
+        <button class="inventory-close" id="inventoryClose" type="button" aria-label="인벤토리 닫기">×</button>
+      </div>
+      <p class="inventory-summary" id="inventorySummary">지역 미션 보상이 여기에 모입니다.</p>
+      <div class="inventory-list" id="inventoryList"></div>
+    </aside>
+  </main>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js"
+      }
+    }
+  </script>
+  <script src="../korea-terrain-kit.js"></script>
+  <script src="../korea-culture-minigames-kit.js"></script>
+  <script type="module">
+    import * as THREE from "three";
+
+    const app = document.querySelector("#app");
+    const labelLayer = document.querySelector("#labels");
+    const visitedCountEl = document.querySelector("#visitedCount");
+    const currentCityEl = document.querySelector("#currentCity");
+    const speedValueEl = document.querySelector("#speedValue");
+    const cityNameEl = document.querySelector("#cityName");
+    const cityMetaEl = document.querySelector("#cityMeta");
+    const toastEl = document.querySelector("#toast");
+    const locationModal = document.querySelector("#locationModal");
+    const modalCityNameEl = document.querySelector("#modalCityName");
+    const modalDescriptionEl = document.querySelector("#modalDescription");
+    const modalResultEl = document.querySelector("#modalResult");
+    const modalCloseEl = document.querySelector("#modalClose");
+    const visitActionEl = document.querySelector("#visitAction");
+    const questActionEl = document.querySelector("#questAction");
+    const minimap = document.querySelector("#minimap");
+    const miniCtx = minimap.getContext("2d");
+    const diaryLaunchToggleEl = document.querySelector("#diaryLaunchToggle");
+    const diaryAppModalEl = document.querySelector("#diaryAppModal");
+    const diaryAppCloseEl = document.querySelector("#diaryAppClose");
+    const diaryAppFrameEl = document.querySelector("#diaryAppFrame");
+    const cultureRouteToggleEl = document.querySelector("#cultureRouteToggle");
+    const cultureRouteModalEl = document.querySelector("#cultureRouteModal");
+    const cultureRouteCloseEl = document.querySelector("#cultureRouteClose");
+    const cultureMapTabEl = document.querySelector("#cultureMapTab");
+    const cultureDiaryTabEl = document.querySelector("#cultureDiaryTab");
+    const cultureMapViewEl = document.querySelector("#cultureMapView");
+    const cultureDiaryViewEl = document.querySelector("#cultureDiaryView");
+    const cultureRouteFormEl = document.querySelector("#cultureRouteForm");
+    const cultureStartInputEl = document.querySelector("#cultureStartInput");
+    const cultureEndInputEl = document.querySelector("#cultureEndInput");
+    const cultureKeywordInputEl = document.querySelector("#cultureKeywordInput");
+    const cultureRouteStatusEl = document.querySelector("#cultureRouteStatus");
+    const cultureRecommendationListEl = document.querySelector("#cultureRecommendationList");
+    const culture2dLandShapeEl = document.querySelector("#culture2dLandShape");
+    const culture2dIslandLayerEl = document.querySelector("#culture2dIslandLayer");
+    const culture2dCityLayerEl = document.querySelector("#culture2dCityLayer");
+    const culture2dMarkerLayerEl = document.querySelector("#culture2dMarkerLayer");
+    const culture2dRouteLineEl = document.querySelector("#culture2dRouteLine");
+    const cultureCandidateCountEl = document.querySelector("#cultureCandidateCount");
+    const cultureSelectedCountEl = document.querySelector("#cultureSelectedCount");
+    const cultureUsedTimeEl = document.querySelector("#cultureUsedTime");
+    const cultureDiaryFormEl = document.querySelector("#cultureDiaryForm");
+    const cultureDiaryTitleInputEl = document.querySelector("#cultureDiaryTitleInput");
+    const cultureDiaryPlaceInputEl = document.querySelector("#cultureDiaryPlaceInput");
+    const cultureDiaryDateInputEl = document.querySelector("#cultureDiaryDateInput");
+    const cultureDiaryMoodInputEl = document.querySelector("#cultureDiaryMoodInput");
+    const cultureDiaryToneInputEl = document.querySelector("#cultureDiaryToneInput");
+    const cultureDiaryTextureInputEl = document.querySelector("#cultureDiaryTextureInput");
+    const cultureDiaryFrameInputEl = document.querySelector("#cultureDiaryFrameInput");
+    const cultureDiaryMemoInputEl = document.querySelector("#cultureDiaryMemoInput");
+    const cultureDiaryPhotoInputEl = document.querySelector("#cultureDiaryPhotoInput");
+    const cultureDiaryBackToMapEl = document.querySelector("#cultureDiaryBackToMap");
+    const cultureDiaryResetEl = document.querySelector("#cultureDiaryReset");
+    const cultureDiaryPreviewEl = document.querySelector("#cultureDiaryPreview");
+    const cultureDiaryStatusEl = document.querySelector("#cultureDiaryStatus");
+    const cultureDiaryListEl = document.querySelector("#cultureDiaryList");
+    const diaryMapModalEl = document.querySelector("#diaryMapModal");
+    const diaryMapTitleEl = document.querySelector("#diaryMapTitle");
+    const diaryMapBodyEl = document.querySelector("#diaryMapBody");
+    const diaryMapCloseEl = document.querySelector("#diaryMapClose");
+    const inventoryToggleEl = document.querySelector("#inventoryToggle");
+    const inventoryButtonCountEl = document.querySelector("#inventoryButtonCount");
+    const inventoryPanelEl = document.querySelector("#inventoryPanel");
+    const inventoryCloseEl = document.querySelector("#inventoryClose");
+    const inventorySummaryEl = document.querySelector("#inventorySummary");
+    const inventoryListEl = document.querySelector("#inventoryList");
+    const gameModalEl = document.querySelector("#gameModal");
+    const gameKickerEl = document.querySelector("#gameKicker");
+    const gameTitleEl = document.querySelector("#gameTitle");
+    const gameMetaEl = document.querySelector("#gameMeta");
+    const gamePromptEl = document.querySelector("#gamePrompt");
+    const gameSlotsEl = document.querySelector("#gameSlots");
+    const gameChoicesEl = document.querySelector("#gameChoices");
+    const gameCardsEl = document.querySelector("#gameCards");
+    const gameFeedbackEl = document.querySelector("#gameFeedback");
+    const gameCloseEl = document.querySelector("#gameClose");
+    const gameResetEl = document.querySelector("#gameReset");
+
+    const MIN_LON = 124.5;
+    const MAX_LON = 132.2;
+    const MIN_LAT = 33.0;
+    const MAX_LAT = 38.9;
+    const MAP_SCALE = 5;
+    const WORLD_W = 1100 * MAP_SCALE;
+    const WORLD_D = 1450 * MAP_SCALE;
+    const LAND_Y = 7;
+    const PLAYER_Y = 24;
+    const keys = new Set();
+    const SHOW_MOUNTAINS = false;
+    const COLORS = {
+      land: 0xeaf6df,
+      landIsland: 0xf8edcf,
+      landIslet: 0xf2f2f2,
+      landEdge: 0x111111,
+      terrain: 0xd8e8d2,
+      regionLine: 0x204c9a,
+      sea: 0xf2f2f2,
+      sky: 0xffffff,
+      road: 0xf09a19,
+      ferry: 0x204c9a,
+      marker: 0xffffff,
+      visited: 0xf0002f,
+    };
+
+    function makePixelDiaryTexture(size = 128, base = "#f2f2f2", line = "#d8d8d2", accent = "#ffffff") {
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      ctx.imageSmoothingEnabled = false;
+      ctx.fillStyle = base;
+      ctx.fillRect(0, 0, size, size);
+      ctx.fillStyle = accent;
+      ctx.fillRect(0, 0, size, 18);
+      ctx.fillStyle = line;
+      for (let i = 0; i <= size; i += 16) {
+        ctx.fillRect(i, 0, 2, size);
+        ctx.fillRect(0, i, size, 2);
+      }
+      ctx.fillStyle = "rgba(17,17,17,0.08)";
+      ctx.fillRect(64, 0, 2, size);
+      ctx.fillRect(0, 64, size, 2);
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.magFilter = THREE.NearestFilter;
+      texture.minFilter = THREE.NearestFilter;
+      texture.wrapS = THREE.RepeatWrapping;
+      texture.wrapT = THREE.RepeatWrapping;
+      return texture;
+    }
+
+    const MAINLAND_LL = [
+      [126.10, 37.76], [126.34, 37.92], [126.68, 38.05], [127.08, 38.20],
+      [127.46, 38.28], [127.86, 38.30], [128.22, 38.26], [128.56, 38.22],
+      [128.86, 38.10], [129.02, 37.92], [129.12, 37.68], [129.20, 37.42],
+      [129.22, 37.18], [129.30, 36.90], [129.40, 36.55], [129.48, 36.22],
+      [129.43, 35.92], [129.36, 35.63], [129.28, 35.38], [129.18, 35.16],
+      [129.00, 35.02], [128.72, 34.88], [128.46, 34.78], [128.19, 34.69],
+      [127.92, 34.58], [127.66, 34.49], [127.47, 34.38], [127.32, 34.45],
+      [127.13, 34.38], [126.92, 34.28], [126.72, 34.22], [126.55, 34.30],
+      [126.39, 34.24], [126.21, 34.34], [126.05, 34.43], [125.92, 34.58],
+      [126.14, 34.70], [126.32, 34.82], [126.12, 34.94], [126.30, 35.03],
+      [126.06, 35.13], [125.82, 35.08], [125.58, 35.19], [125.43, 35.37],
+      [125.39, 35.57], [125.62, 35.70], [125.77, 35.93], [125.85, 36.15],
+      [126.03, 36.34], [126.04, 36.56], [126.20, 36.76], [126.18, 37.02],
+      [126.08, 37.27], [126.15, 37.52],
+    ];
+
+    const ISLANDS = [
+      { key: "JejuIsland", lon: 126.53, lat: 33.38, rx: 300, rz: 145, angle: -8 },
+      { key: "Ulleungdo", lon: 130.90, lat: 37.49, rx: 45, rz: 38, angle: 0 },
+      { key: "Dokdo", lon: 131.87, lat: 37.24, rx: 10, rz: 7, angle: 0 },
+    ];
+
+    const COAST_ISLETS = [
+      { lon: 126.13, lat: 37.52, rx: 13 * MAP_SCALE, rz: 7 * MAP_SCALE, angle: -12 },
+      { lon: 126.38, lat: 36.74, rx: 10 * MAP_SCALE, rz: 6 * MAP_SCALE, angle: 18 },
+      { lon: 126.19, lat: 36.58, rx: 8 * MAP_SCALE, rz: 5 * MAP_SCALE, angle: -8 },
+      { lon: 126.02, lat: 35.08, rx: 9 * MAP_SCALE, rz: 5 * MAP_SCALE, angle: 22 },
+      { lon: 125.86, lat: 34.74, rx: 12 * MAP_SCALE, rz: 6 * MAP_SCALE, angle: -16 },
+      { lon: 126.04, lat: 34.62, rx: 8 * MAP_SCALE, rz: 5 * MAP_SCALE, angle: 10 },
+      { lon: 126.32, lat: 34.40, rx: 10 * MAP_SCALE, rz: 5 * MAP_SCALE, angle: -20 },
+      { lon: 126.58, lat: 34.19, rx: 8 * MAP_SCALE, rz: 4 * MAP_SCALE, angle: 12 },
+      { lon: 127.29, lat: 34.36, rx: 11 * MAP_SCALE, rz: 5 * MAP_SCALE, angle: 5 },
+      { lon: 127.73, lat: 34.47, rx: 8 * MAP_SCALE, rz: 4 * MAP_SCALE, angle: -15 },
+      { lon: 128.02, lat: 34.57, rx: 8 * MAP_SCALE, rz: 4 * MAP_SCALE, angle: 16 },
+    ];
+
+    const LAND_REINFORCEMENTS = [
+      { lon: 128.32, lat: 37.74, rx: 188 * MAP_SCALE, rz: 82 * MAP_SCALE, angle: 2 },
+    ];
+
+    const TERRAIN_PATCHES = [
+      { lon: 128.30, lat: 37.28, rx: 48 * MAP_SCALE, rz: 170 * MAP_SCALE, angle: 8 },
+      { lon: 128.55, lat: 36.45, rx: 42 * MAP_SCALE, rz: 140 * MAP_SCALE, angle: -5 },
+      { lon: 127.78, lat: 36.05, rx: 46 * MAP_SCALE, rz: 120 * MAP_SCALE, angle: 18 },
+      { lon: 127.62, lat: 35.35, rx: 54 * MAP_SCALE, rz: 118 * MAP_SCALE, angle: -18 },
+      { lon: 126.88, lat: 35.20, rx: 44 * MAP_SCALE, rz: 86 * MAP_SCALE, angle: 20 },
+      { lon: 127.95, lat: 34.92, rx: 44 * MAP_SCALE, rz: 72 * MAP_SCALE, angle: -8 },
+      { lon: 127.06, lat: 37.15, rx: 46 * MAP_SCALE, rz: 74 * MAP_SCALE, angle: -12 },
+    ];
+
+    const RIDGE_LINES = [
+      [[128.62, 38.05], [128.58, 37.72], [128.72, 37.22], [128.86, 36.72], [128.72, 36.20], [128.62, 35.75], [128.82, 35.28]],
+      [[127.78, 37.62], [128.02, 37.16], [128.18, 36.70], [128.06, 36.24], [127.82, 35.82], [127.56, 35.48], [127.46, 35.12]],
+      [[126.82, 37.48], [127.08, 37.12], [127.18, 36.72], [127.08, 36.24], [126.86, 35.84], [126.76, 35.36]],
+      [[127.35, 34.88], [127.78, 34.92], [128.18, 35.06], [128.54, 35.22]],
+    ];
+
+    const MOUNTAIN_RANGES = [
+      {
+        name: "태백산맥",
+        points: [[128.65, 38.18], [128.77, 37.78], [128.92, 37.30], [129.06, 36.86], [129.03, 36.38], [128.92, 35.92], [128.98, 35.48], [129.17, 35.18]],
+        width: 46 * MAP_SCALE,
+        passRadius: 42 * MAP_SCALE,
+        passes: [[128.88, 37.75], [128.73, 36.57], [129.36, 36.02], [129.31, 35.54], [129.08, 35.18]],
+      },
+      {
+        name: "소백산맥",
+        points: [[128.55, 37.05], [128.22, 36.64], [127.86, 36.22], [127.58, 35.82], [127.42, 35.42], [127.56, 35.10], [127.74, 34.86]],
+        width: 42 * MAP_SCALE,
+        passRadius: 44 * MAP_SCALE,
+        passes: [[128.73, 36.57], [128.60, 35.87], [127.38, 36.35], [128.11, 35.18], [127.66, 34.76]],
+      },
+      {
+        name: "노령산맥",
+        points: [[126.82, 35.92], [127.02, 35.62], [127.28, 35.36], [127.50, 35.08], [127.70, 34.82]],
+        width: 34 * MAP_SCALE,
+        passRadius: 38 * MAP_SCALE,
+        passes: [[127.15, 35.82], [126.85, 35.16], [127.66, 34.76]],
+      },
+      {
+        name: "차령산맥",
+        points: [[126.78, 37.08], [127.08, 36.86], [127.38, 36.64], [127.70, 36.42], [128.05, 36.28]],
+        width: 32 * MAP_SCALE,
+        passRadius: 38 * MAP_SCALE,
+        passes: [[127.03, 37.26], [127.49, 36.64], [127.29, 36.48], [127.38, 36.35]],
+      },
+    ];
+
+    const REGION_LINES = [
+      [[126.44, 37.78], [126.86, 37.42], [127.28, 37.20], [127.74, 37.36], [128.22, 37.50]],
+      [[126.65, 36.88], [127.20, 36.72], [127.72, 36.58], [128.24, 36.72]],
+      [[126.28, 36.18], [126.88, 36.10], [127.40, 36.28], [127.98, 36.08]],
+      [[126.12, 35.48], [126.76, 35.48], [127.24, 35.70], [127.82, 35.60]],
+      [[126.62, 34.84], [127.10, 34.96], [127.62, 34.88], [128.10, 34.80]],
+    ];
+
+    const CITY_DATA = {
+      Seoul: ["서울", "수도권 출발 지점", 126.9780, 37.5665],
+      Incheon: ["인천", "서해 관문", 126.7052, 37.4563],
+      Suwon: ["수원", "경기 남부 거점", 127.0286, 37.2636],
+      Chuncheon: ["춘천", "호수와 산길", 127.7298, 37.8813],
+      Gangneung: ["강릉", "동해안 코스", 128.8761, 37.7519],
+      Cheongju: ["청주", "중부 연결점", 127.4890, 36.6424],
+      Sejong: ["세종", "행정 중심", 127.2890, 36.4800],
+      Daejeon: ["대전", "철도 교차점", 127.3845, 36.3504],
+      Jeonju: ["전주", "전북 루트", 127.1480, 35.8242],
+      Gwangju: ["광주", "남서부 허브", 126.8526, 35.1595],
+      Mokpo: ["목포", "제주행 항구", 126.3922, 34.8118],
+      Daegu: ["대구", "영남 내륙", 128.6014, 35.8714],
+      Andong: ["안동", "북부 산길", 128.7294, 36.5684],
+      Pohang: ["포항", "동해 항구", 129.3650, 36.0190],
+      Ulsan: ["울산", "남동 해안", 129.3114, 35.5384],
+      Busan: ["부산", "남해 관문", 129.0756, 35.1796],
+      Jinju: ["진주", "남부 내륙", 128.1076, 35.1800],
+      Yeosu: ["여수", "남해 끝길", 127.6622, 34.7604],
+      Jeju: ["제주", "섬 지역", 126.5312, 33.4996],
+    };
+
+    const REGION_REWARDS = {
+      Seoul: { item: "한글 활자 조각", kind: "기록 문화", mark: "한", mission: "궁궐 주변의 사라진 전통 문양을 찾아 기록하기" },
+      Incheon: { item: "강화 화문석 장식", kind: "공예", mark: "화", mission: "서해 포구에서 강화 화문석 짜임 단서 모으기" },
+      Suwon: { item: "화성 성곽 배지", kind: "건축 유산", mark: "성", mission: "수원화성 성문 배치를 따라 방어 동선 완성하기" },
+      Chuncheon: { item: "막국수 레시피 조각", kind: "향토 음식", mark: "막", mission: "메밀 음식 문화의 재료와 장터 이야기를 연결하기" },
+      Gangneung: { item: "단오제 탈 조각", kind: "민속 축제", mark: "단", mission: "강릉단오제 의식 순서를 맞춰 지역 축제 복원하기" },
+      Cheongju: { item: "직지 금속활자 복각", kind: "인쇄 문화", mark: "직", mission: "금속활자 제작 과정을 따라 직지 보존 단서 찾기" },
+      Sejong: { item: "농악 장단 카드", kind: "공연 문화", mark: "장", mission: "마을 장단을 듣고 사물놀이 박자 흐름 맞추기" },
+      Daejeon: { item: "회덕향교 목패", kind: "교육 유산", mark: "향", mission: "향교 기록 속 지역 교육 문화의 빈칸 채우기" },
+      Jeonju: { item: "전주 한지 부채", kind: "공예", mark: "지", mission: "한지 뜨기 순서를 맞춰 전통 공예품 완성하기" },
+      Gwangju: { item: "무등 분청사기 조각", kind: "도자 문화", mark: "분", mission: "분청사기 무늬를 복원해 생활 도자 이야기 열기" },
+      Mokpo: { item: "남도 민요 악보", kind: "소리 문화", mark: "민", mission: "항구 길목의 남도 민요 가락 조각 모으기" },
+      Daegu: { item: "약령시 약첩", kind: "시장 문화", mark: "약", mission: "약령시 약재 이름과 쓰임을 짝지어 처방 꾸리기" },
+      Andong: { item: "하회탈 목각", kind: "탈춤", mark: "탈", mission: "하회별신굿탈놀이 배역의 표정과 대사 맞추기" },
+      Pohang: { item: "호미곶 해맞이 패", kind: "해양 문화", mark: "해", mission: "동해안 마을의 새해 의례와 어촌 이야기를 잇기" },
+      Ulsan: { item: "처용무 가면", kind: "궁중 무용", mark: "처", mission: "처용 설화의 장면을 순서대로 배열하기" },
+      Busan: { item: "동래야류 탈", kind: "가면극", mark: "야", mission: "동래야류 등장인물의 몸짓을 따라 무대 구성하기" },
+      Jinju: { item: "진주검무 매듭", kind: "무형 문화", mark: "검", mission: "진주검무 동작 흐름을 맞춰 공연 기록 완성하기" },
+      Yeosu: { item: "거북선 나전 장식", kind: "해양 유산", mark: "선", mission: "남해 항로에서 거북선 구조 단서를 찾아 조립하기" },
+      Jeju: { item: "해녀 테왁 미니어처", kind: "해양 생활", mark: "숨", mission: "해녀 물질 도구와 숨비소리 의미를 연결하기" },
+    };
+
+    const REGION_GAMES = {};
+    if (window.KoreaCultureMinigames?.replaceRegionGames) {
+      window.KoreaCultureMinigames.replaceRegionGames(REGION_GAMES);
+    } else {
+      console.warn("KoreaCultureMinigames kit was not loaded. Minigames are unavailable.");
+    }
+
+    function gamePrompt(game) {
+      return game?.prompt || game?.idea || "Complete the local culture minigame to collect culture cards.";
+    }
+
+    const ROADS = [
+      ["Seoul", "Incheon"], ["Seoul", "Suwon"], ["Seoul", "Chuncheon"],
+      ["Chuncheon", "Gangneung"], ["Suwon", "Cheongju"], ["Cheongju", "Sejong"],
+      ["Sejong", "Daejeon"], ["Daejeon", "Jeonju"], ["Jeonju", "Gwangju"],
+      ["Gwangju", "Mokpo"], ["Gwangju", "Yeosu"], ["Daejeon", "Daegu"],
+      ["Cheongju", "Andong"], ["Andong", "Daegu"], ["Andong", "Pohang"],
+      ["Daegu", "Pohang"], ["Daegu", "Ulsan"], ["Ulsan", "Busan"],
+      ["Daegu", "Busan"], ["Daegu", "Jinju"], ["Jinju", "Yeosu"], ["Jinju", "Busan"],
+    ];
+
+    const FERRIES = [
+      ["Mokpo", "Jeju"],
+      ["Busan", "Jeju"],
+    ];
+
+    const CULTURE_DIARY_STORAGE_KEY = "korea-worldmap.culture-diaries.v1";
+    const SOYUN_DIARY_STORAGE_KEY = "travel-diary-club.entries";
+    const CURRENT_DIARY_LOCATION_KEY = "korea-worldmap.current-diary-location";
+
+    const REGION_COSTUMES = {
+      Seoul: {
+        key: "Seoul",
+        label: "Seoul outfit",
+        inventorySrc: "../%EC%95%84%EC%9D%B4%ED%85%9C/%EC%84%9C%EC%9A%B8_%EC%9D%B8%EB%B2%A4%ED%86%A0%EB%A6%AC.png",
+        style: { jacket: 0xf6f1e6, trim: 0xc53b32, pants: 0x111111, hat: 0x2c2c2c, accent: 0xf5d16b, accessory: "fan" },
+      },
+      Daejeon: {
+        key: "Daejeon",
+        label: "Daejeon outfit",
+        inventorySrc: "../%EC%95%84%EC%9D%B4%ED%85%9C/%EB%8C%80%EC%A0%84_%EC%9D%B8%EB%B2%A4%ED%86%A0%EB%A6%AC.png",
+        style: { jacket: 0xe8eef6, trim: 0x4668a8, pants: 0x24324f, hat: 0x405f9b, accent: 0xffd45a, accessory: "sash" },
+      },
+      Gwangju: {
+        key: "Gwangju",
+        label: "Gwangju outfit",
+        inventorySrc: "../%EC%95%84%EC%9D%B4%ED%85%9C/%EA%B4%91%EC%A3%BC_%EC%9D%B8%EB%B2%A4%ED%86%A0%EB%A6%AC.png",
+        style: { jacket: 0xf8f0dc, trim: 0x5c9a64, pants: 0x304b33, hat: 0x2d6a3f, accent: 0xf0b13e, accessory: "drum" },
+      },
+      Busan: {
+        key: "Busan",
+        label: "Busan outfit",
+        inventorySrc: "../%EC%95%84%EC%9D%B4%ED%85%9C/%EB%B6%80%EC%82%B0_%EC%9D%B8%EB%B2%A4%ED%86%A0%EB%A6%AC.png",
+        style: { jacket: 0xeaf7ff, trim: 0x1596c7, pants: 0x174e68, hat: 0xffffff, accent: 0xef5a48, accessory: "wave" },
+      },
+      Jeju: {
+        key: "Jeju",
+        label: "Jeju outfit",
+        inventorySrc: "../%EC%95%84%EC%9D%B4%ED%85%9C/%EC%A0%9C%EC%A3%BC%EB%8F%84_%EC%9D%B8%EB%B2%A4%ED%86%A0%EB%A6%AC.png",
+        style: { jacket: 0x050807, trim: 0x00b8d9, pants: 0x050807, hat: 0xffd22e, accent: 0xff8a00, accessory: "haenyeo" },
+      },
+    };
+
+    const HIDDEN_CULTURE_PLACES = Object.entries(REGION_GAMES)
+      .map(([cityKey, game], index) => {
+        const cityData = CITY_DATA[cityKey];
+        if (!cityData) return null;
+        const [city, meta, lng, lat] = cityData;
+        const mainCard = game.cards?.[0] || game.title;
+        return {
+          id: `culture-${cityKey}`,
+          cityKey,
+          city,
+          lng,
+          lat,
+          name: `${city} ${mainCard} ????`,
+          category: game.material,
+          title: game.title,
+          description: gamePrompt(game),
+          tags: game.cards || [],
+          meta,
+          stayMinutes: 28 + (index % 4) * 8,
+        };
+      })
+      .filter(Boolean);
+
+    const LANDMARK_STYLES = {
+      Seoul: { type: "tower", accent: 0xd84b38, secondary: 0xf4d66d },
+      Incheon: { type: "bridge", accent: 0x5a9ecf, secondary: 0xf5f7f2 },
+      Suwon: { type: "gate", accent: 0xbf5f38, secondary: 0x314d63 },
+      Chuncheon: { type: "pavilion", accent: 0x5f9f7e, secondary: 0xf1d4a8 },
+      Gangneung: { type: "lighthouse", accent: 0xe65a48, secondary: 0xffffff },
+      Cheongju: { type: "civic", accent: 0x7f92b8, secondary: 0xd7e3f5 },
+      Sejong: { type: "civic", accent: 0x609b86, secondary: 0xe7efdf },
+      Daejeon: { type: "dome", accent: 0x6a78bd, secondary: 0xc9dcff },
+      Jeonju: { type: "hanok", accent: 0x9b4f2f, secondary: 0x243c4a },
+      Gwangju: { type: "gallery", accent: 0xb06cb8, secondary: 0xf1e4f5 },
+      Mokpo: { type: "harbor", accent: 0x4987c7, secondary: 0xf8f1d7 },
+      Daegu: { type: "tower", accent: 0xc95d3f, secondary: 0xffd36c },
+      Andong: { type: "hanok", accent: 0x8f5535, secondary: 0x29485f },
+      Pohang: { type: "industrial", accent: 0x74808a, secondary: 0xffb15d },
+      Ulsan: { type: "industrial", accent: 0x477d8a, secondary: 0xf2c46d },
+      Busan: { type: "bridge", accent: 0x58a8d3, secondary: 0xf7fbff },
+      Jinju: { type: "gate", accent: 0xa75432, secondary: 0x2f4f5c },
+      Yeosu: { type: "harbor", accent: 0x54a7b8, secondary: 0xf3e0b4 },
+      Jeju: { type: "orange", accent: 0xff9f1c, secondary: 0x2f9f5b },
+    };
+
+    const CHERRY_GROVES = [
+      { lon: 126.98, lat: 37.56, count: 10, radius: 235 },
+      { lon: 127.73, lat: 37.88, count: 6, radius: 190 },
+      { lon: 127.15, lat: 35.82, count: 7, radius: 210 },
+      { lon: 128.11, lat: 35.18, count: 8, radius: 225 },
+      { lon: 129.08, lat: 35.18, count: 7, radius: 205 },
+    ];
+
+    const CAMELLIA_TREES = [
+      { clock: "3", dx: 190, dz: 52, scale: 2.05, spin: -0.2 },
+      { clock: "9", dx: -190, dz: 52, scale: 1.95, spin: -0.08 },
+    ];
+
+    const WORLD_BGM_SRC = "../[중간광고X] 귀여운 소통방송용 브금BGM 3시간 (저작권없는브금) - 포아티스트 (mp3cut.net).mp3";
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(COLORS.sky);
+    scene.fog = new THREE.Fog(COLORS.sky, 2300, 9000);
+
+    const camera = new THREE.PerspectiveCamera(56, innerWidth / innerHeight, 1, 15000);
+    const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: "high-performance" });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(1);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    app.prepend(renderer.domElement);
+
+    const ambient = new THREE.HemisphereLight(0xdff8ff, 0x244032, 2.2);
+    scene.add(ambient);
+
+    const sun = new THREE.DirectionalLight(0xfff0c0, 3.4);
+    sun.position.set(-240, 420, -260);
+    sun.castShadow = true;
+    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.camera.left = -5200;
+    sun.shadow.camera.right = 5200;
+    sun.shadow.camera.top = 6200;
+    sun.shadow.camera.bottom = -6200;
+    scene.add(sun);
+
+    const coastGroup = new THREE.Group();
+    const roadsGroup = new THREE.Group();
+    const cityGroup = new THREE.Group();
+    const springGroup = new THREE.Group();
+    const diaryMarkerGroup = new THREE.Group();
+    const rabbitGroup = new THREE.Group();
+    scene.add(coastGroup, roadsGroup, cityGroup, springGroup, diaryMarkerGroup, rabbitGroup);
+    const koreaTerrain = window.KoreaTerrainKit?.createKoreaTerrain(THREE, scene, {
+      minLon: MIN_LON,
+      maxLon: MAX_LON,
+      minLat: MIN_LAT,
+      maxLat: MAX_LAT,
+      worldW: WORLD_W,
+      worldD: WORLD_D,
+      landY: LAND_Y,
+      includeSea: true,
+      includeJeju: true,
+      cities: CITY_DATA,
+      roads: ROADS,
+      grassBlockSize: 70,
+      groundDetailCount: 230,
+      grassTuftCount: 94,
+      treeCount: 0,
+      flowerPatchCount: 46,
+      colors: {
+        land: 0x7dcc68,
+        landIsland: 0x86d872,
+        landEdge: 0x4a8f55,
+        sea: 0x6dc5df
+      }
+    });
+    if (koreaTerrain?.root) koreaTerrain.root.name = "KoreaTerrainKitRoot";
+
+    const cities = {};
+    const cityLabels = {};
+    const visited = new Set();
+    const completedQuests = new Set();
+    const inventory = new Map();
+    let popupCity = null;
+    let activeGameCity = null;
+    let minigameInstance = null;
+    let interactionOpen = false;
+    let inventoryOpen = false;
+    let diaryAppOpen = false;
+    let cultureRouteOpen = false;
+    let cultureLastResults = [];
+    let cultureSelectedPlace = null;
+    let cultureDiaryPhoto = "";
+    let cultureMapBaseReady = false;
+    let equippedCostumeKey = "";
+    let playerCostumePlane = null;
+    let worldBgm = null;
+    let worldBgmStarted = false;
+    const MOVEMENT_CODES = new Set(["KeyW", "KeyA", "KeyS", "KeyD", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "ShiftLeft", "ShiftRight"]);
+
+    function startWorldBgm() {
+      if (worldBgmStarted) return;
+      worldBgmStarted = true;
+      worldBgm = worldBgm || new Audio(WORLD_BGM_SRC);
+      worldBgm.loop = true;
+      worldBgm.volume = 0.42;
+      worldBgm.play().catch(() => {
+        worldBgmStarted = false;
+      });
+    }
+
+    function project(lon, lat) {
+      const x = ((lon - MIN_LON) / (MAX_LON - MIN_LON) - 0.5) * WORLD_W;
+      const z = ((MAX_LAT - lat) / (MAX_LAT - MIN_LAT) - 0.5) * WORLD_D;
+      return new THREE.Vector3(x, LAND_Y, z);
+    }
+
+    function lonLatFromWorld(x, z) {
+      const lon = ((x / WORLD_W) + 0.5) * (MAX_LON - MIN_LON) + MIN_LON;
+      const lat = MAX_LAT - ((z / WORLD_D) + 0.5) * (MAX_LAT - MIN_LAT);
+      return [lon, lat];
+    }
+
+    function shapeFromLonLat(points) {
+      const shape = new THREE.Shape();
+      points.forEach(([lon, lat], index) => {
+        const p = project(lon, lat);
+        if (index === 0) shape.moveTo(p.x, p.z);
+        else shape.lineTo(p.x, p.z);
+      });
+      shape.closePath();
+      return shape;
+    }
+
+    function makeLandMesh(shape, color, edgeColor) {
+      const geometry = new THREE.ExtrudeGeometry(shape, {
+        depth: 12,
+        bevelEnabled: true,
+        bevelSize: 2.8,
+        bevelThickness: 2.2,
+        bevelSegments: 4,
+      });
+      geometry.rotateX(-Math.PI / 2);
+      geometry.translate(0, LAND_Y - 6, 0);
+      const mesh = new THREE.Mesh(
+        geometry,
+        new THREE.MeshStandardMaterial({ color, roughness: 0.9, metalness: 0.0, flatShading: true })
+      );
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      coastGroup.add(mesh);
+
+      const edgeGeometry = new THREE.EdgesGeometry(geometry, 24);
+      const edge = new THREE.LineSegments(edgeGeometry, new THREE.LineBasicMaterial({ color: edgeColor, transparent: true, opacity: 0.9 }));
+      coastGroup.add(edge);
+      return mesh;
+    }
+
+    function islandShape(island, steps = 48) {
+      const center = project(island.lon, island.lat);
+      const shape = new THREE.Shape();
+      const angle = island.angle * Math.PI / 180;
+      for (let i = 0; i <= steps; i += 1) {
+        const t = Math.PI * 2 * i / steps;
+        const px = Math.cos(t) * island.rx;
+        const pz = Math.sin(t) * island.rz;
+        const x = center.x + px * Math.cos(angle) - pz * Math.sin(angle);
+        const z = center.z + px * Math.sin(angle) + pz * Math.cos(angle);
+        if (i === 0) shape.moveTo(x, z);
+        else shape.lineTo(x, z);
+      }
+      return shape;
+    }
+
+    function raisedPatchShape(patch, steps = 42) {
+      const center = project(patch.lon, patch.lat);
+      const shape = new THREE.Shape();
+      const angle = patch.angle * Math.PI / 180;
+      for (let i = 0; i <= steps; i += 1) {
+        const t = Math.PI * 2 * i / steps;
+        const wobble = 1 + Math.sin(t * 3.0) * 0.08 + Math.cos(t * 5.0) * 0.05;
+        const px = Math.cos(t) * patch.rx * wobble;
+        const pz = Math.sin(t) * patch.rz * wobble;
+        const x = center.x + px * Math.cos(angle) - pz * Math.sin(angle);
+        const z = center.z + px * Math.sin(angle) + pz * Math.cos(angle);
+        if (i === 0) shape.moveTo(x, z);
+        else shape.lineTo(x, z);
+      }
+      return shape;
+    }
+
+    function makeTerrainPatch(patch) {
+      const geometry = new THREE.ExtrudeGeometry(raisedPatchShape(patch), {
+        depth: 10,
+        bevelEnabled: true,
+        bevelSize: 3.2,
+        bevelThickness: 2.0,
+        bevelSegments: 3,
+      });
+      geometry.rotateX(-Math.PI / 2);
+      geometry.translate(0, LAND_Y + 7, 0);
+      const mesh = new THREE.Mesh(
+        geometry,
+        new THREE.MeshStandardMaterial({ color: COLORS.terrain, roughness: 0.82, metalness: 0.02 })
+      );
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      coastGroup.add(mesh);
+      return mesh;
+    }
+
+    function makeFlatLandPatch(patch) {
+      const center = project(patch.lon, patch.lat);
+      const ground = new THREE.Mesh(
+        new THREE.CircleGeometry(1, 72),
+        new THREE.MeshBasicMaterial({ color: COLORS.land, side: THREE.DoubleSide })
+      );
+      ground.rotation.x = -Math.PI / 2;
+      ground.rotation.z = patch.angle * Math.PI / 180;
+      ground.scale.set(patch.rx, patch.rz, 1);
+      ground.position.set(center.x, LAND_Y + 1.5, center.z);
+      ground.receiveShadow = true;
+      coastGroup.add(ground);
+
+      return ground;
+    }
+
+    function addRaisedPath(points, options = {}) {
+      const {
+        color = 0xd0d0ca,
+        radius = 1.6,
+        y = LAND_Y + 20,
+        opacity = 1,
+      } = options;
+      const curvePoints = points.map(([lon, lat]) => project(lon, lat).setY(y));
+      const curve = new THREE.CatmullRomCurve3(curvePoints);
+      const geometry = new THREE.TubeGeometry(curve, Math.max(18, points.length * 8), radius, 8, false);
+      const material = new THREE.MeshStandardMaterial({
+        color,
+        roughness: 0.7,
+        metalness: 0.02,
+        transparent: opacity < 1,
+        opacity,
+      });
+      const mesh = new THREE.Mesh(geometry, material);
+      mesh.castShadow = true;
+      coastGroup.add(mesh);
+      return mesh;
+    }
+
+    function addMountainRange(range) {
+      const sampled = [];
+      for (let i = 0; i < range.points.length - 1; i += 1) {
+        const a = project(range.points[i][0], range.points[i][1]).setY(LAND_Y + 35);
+        const b = project(range.points[i + 1][0], range.points[i + 1][1]).setY(LAND_Y + 35);
+        for (let step = 0; step <= 14; step += 1) {
+          if (i > 0 && step === 0) continue;
+          sampled.push(a.clone().lerp(b, step / 14));
+        }
+      }
+
+      const chunks = [];
+      let current = [];
+      for (const point of sampled) {
+        if (isNearMountainPass(point.x, point.z, range)) {
+          if (current.length > 1) chunks.push(current);
+          current = [];
+        } else {
+          current.push(point);
+        }
+      }
+      if (current.length > 1) chunks.push(current);
+
+      chunks.forEach((chunk, chunkIndex) => {
+        const curve = new THREE.CatmullRomCurve3(chunk);
+        const segments = Math.max(24, chunk.length * 5);
+        const foothill = new THREE.Mesh(
+          new THREE.TubeGeometry(curve, segments, range.width * 0.15, 12, false),
+          new THREE.MeshStandardMaterial({ color: 0xc6d6a6, roughness: 0.9, metalness: 0.01, transparent: true, opacity: 0.72 })
+        );
+        foothill.castShadow = true;
+        foothill.receiveShadow = true;
+        coastGroup.add(foothill);
+
+        const base = new THREE.Mesh(
+          new THREE.TubeGeometry(curve, segments, 18, 10, false),
+          new THREE.MeshStandardMaterial({ color: 0xaec08e, roughness: 0.86, metalness: 0.02 })
+        );
+        base.castShadow = true;
+        base.receiveShadow = true;
+        coastGroup.add(base);
+
+        const cap = new THREE.Mesh(
+          new THREE.TubeGeometry(curve, segments, 8, 8, false),
+          new THREE.MeshStandardMaterial({ color: 0xf7f3dd, roughness: 0.72, metalness: 0.02 })
+        );
+        cap.castShadow = true;
+        coastGroup.add(cap);
+
+        const peakCount = Math.max(2, Math.floor(chunk.length / 5));
+        for (let i = 1; i <= peakCount; i += 1) {
+          const point = curve.getPoint(i / (peakCount + 1));
+          const peak = new THREE.Mesh(
+            new THREE.ConeGeometry(24 + ((i + chunkIndex) % 3) * 5, 70 + (i % 2) * 18, 5),
+            new THREE.MeshStandardMaterial({ color: i % 2 ? 0xd7d9ad : 0xc4cf9b, roughness: 0.82 })
+          );
+          peak.position.copy(point).add(new THREE.Vector3(0, 22, 0));
+          peak.rotation.y = (i + chunkIndex) * 0.7;
+          peak.castShadow = true;
+          peak.receiveShadow = true;
+          coastGroup.add(peak);
+        }
+      });
+    }
+
+    function addRoad(start, end, ferry = false) {
+      const a = cities[start].position;
+      const b = cities[end].position;
+      const mid = a.clone().lerp(b, 0.5);
+      const direction = b.clone().sub(a);
+      const normal = new THREE.Vector3(-direction.z, 0, direction.x).normalize();
+      const lift = ferry ? 18 : 5;
+      const control = mid.add(normal.multiplyScalar(Math.min(320, direction.length() * 0.14)));
+      control.y = LAND_Y + lift;
+      const curve = new THREE.QuadraticBezierCurve3(
+        a.clone().setY(LAND_Y + lift),
+        control,
+        b.clone().setY(LAND_Y + lift)
+      );
+
+      if (ferry) {
+        // 페리 경로: 기존 TubeGeometry 유지
+        const geometry = new THREE.TubeGeometry(curve, 72, 3.6, 8, false);
+        const material = new THREE.MeshStandardMaterial({
+          color: COLORS.ferry,
+          roughness: 0.58,
+          metalness: 0.1,
+          transparent: true,
+          opacity: 0.75,
+        });
+        const mesh = new THREE.Mesh(geometry, material);
+        roadsGroup.add(mesh);
+
+        const dots = 28;
+        for (let i = 1; i < dots; i += 1) {
+          const dot = new THREE.Mesh(
+            new THREE.SphereGeometry(5.2, 12, 8),
+            new THREE.MeshStandardMaterial({ color: 0xe7fbff, emissive: 0x3b9bbb, emissiveIntensity: 0.18 })
+          );
+          dot.position.copy(curve.getPoint(i / dots));
+          roadsGroup.add(dot);
+        }
+      } else {
+        // 일반 도로: 픽셀블록 흙길
+        const blockSize = 8.4;
+        const blockHeight = 2.8;
+        const samplesCount = Math.ceil(direction.length() / (blockSize * 0.6));
+
+        const dirtMaterial = new THREE.MeshStandardMaterial({
+          color: COLORS.road,
+          roughness: 0.72,
+          metalness: 0.01,
+        });
+
+        for (let i = 0; i <= samplesCount; i += 1) {
+          const t = i / samplesCount;
+          const point = curve.getPoint(t);
+
+          // 블록 생성
+          const blockGeom = new THREE.BoxGeometry(blockSize, blockHeight, blockSize);
+          const blockMesh = new THREE.Mesh(blockGeom, dirtMaterial);
+          blockMesh.position.copy(point);
+          blockMesh.castShadow = true;
+          blockMesh.receiveShadow = true;
+
+          // 랜덤한 높이 변화로 자연스러움 추가
+          blockMesh.position.y += Math.sin(i * 0.5) * 0.6 + Math.random() * 0.4;
+
+          roadsGroup.add(blockMesh);
+        }
+
+        // 길 가장자리에 흙 입자 효과
+        const edgeCount = Math.floor(samplesCount * 0.4);
+        const edgeMaterial = new THREE.MeshStandardMaterial({
+          color: 0xd98e15,
+          roughness: 0.82,
+          metalness: 0,
+        });
+
+        for (let i = 0; i < edgeCount; i += 1) {
+          const t = Math.random();
+          const point = curve.getPoint(t);
+          const sideOffset = Math.random() * 12 - 6;
+          const side = normal.clone().multiplyScalar(sideOffset);
+
+          const edgeGeom = new THREE.BoxGeometry(5, 1.8, 5);
+          const edgeMesh = new THREE.Mesh(edgeGeom, edgeMaterial);
+          edgeMesh.position.copy(point).add(side);
+          edgeMesh.position.y += LAND_Y + 0.8;
+
+          roadsGroup.add(edgeMesh);
+        }
+      }
+    }
+
+    function makeMaterial(color, roughness = 0.66, metalness = 0.02) {
+      return new THREE.MeshStandardMaterial({ color, roughness, metalness });
+    }
+
+    function shadowed(mesh, receive = false, cast = false) {
+      mesh.castShadow = cast;
+      mesh.receiveShadow = receive;
+      return mesh;
+    }
+
+    function addBox(group, size, pos, material) {
+      const mesh = shadowed(new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), material));
+      mesh.position.set(pos[0], pos[1], pos[2]);
+      group.add(mesh);
+      return mesh;
+    }
+
+    function addCylinder(group, top, bottom, height, pos, material, segments = 24) {
+      const mesh = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(top, bottom, height, segments), material));
+      mesh.position.set(pos[0], pos[1], pos[2]);
+      group.add(mesh);
+      return mesh;
+    }
+
+    function addSphere(group, radius, pos, material, scale = [1, 1, 1]) {
+      const mesh = shadowed(new THREE.Mesh(new THREE.SphereGeometry(radius, 24, 16), material));
+      mesh.position.set(pos[0], pos[1], pos[2]);
+      mesh.scale.set(scale[0], scale[1], scale[2]);
+      group.add(mesh);
+      return mesh;
+    }
+
+    function addRoof(group, width, height, depth, pos, material) {
+      const roof = shadowed(new THREE.Mesh(new THREE.ConeGeometry(width * 0.72, height, 4), material));
+      roof.position.set(pos[0], pos[1], pos[2]);
+      roof.rotation.y = Math.PI / 4;
+      roof.scale.z = depth / width;
+      group.add(roof);
+      return roof;
+    }
+
+    function addTube(group, points, radius, material, segments = 32) {
+      const curve = new THREE.CatmullRomCurve3(points.map((p) => new THREE.Vector3(p[0], p[1], p[2])));
+      const mesh = shadowed(new THREE.Mesh(new THREE.TubeGeometry(curve, segments, radius, 8, false), material));
+      group.add(mesh);
+      return mesh;
+    }
+
+    function addCylinderBetween(group, start, end, radius, material, segments = 10) {
+      const from = new THREE.Vector3(start[0], start[1], start[2]);
+      const to = new THREE.Vector3(end[0], end[1], end[2]);
+      const direction = to.clone().sub(from);
+      const length = direction.length();
+      const mesh = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(radius * 0.78, radius, length, segments), material));
+      mesh.position.copy(from.clone().lerp(to, 0.5));
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), direction.normalize());
+      group.add(mesh);
+      return mesh;
+    }
+
+    function buildLandmark(key) {
+      const style = LANDMARK_STYLES[key] || { type: "civic", accent: 0x7d9fba, secondary: 0xe7eef7 };
+      const group = new THREE.Group();
+      const mats = {
+        stone: makeMaterial(0xe9e6d4, 0.76),
+        dark: makeMaterial(0x2c3f43, 0.72),
+        wood: makeMaterial(0x7f5030, 0.78),
+        roof: makeMaterial(style.secondary, 0.64),
+        accent: makeMaterial(style.accent, 0.58),
+        glass: makeMaterial(0x9ed6ee, 0.36, 0.08),
+        light: makeMaterial(0xfff0b2, 0.45),
+      };
+
+      addCylinder(group, 32, 38, 5, [0, 2.5, 0], makeMaterial(0x445a3e, 0.78), 32);
+
+      if (style.type === "tower") {
+        addBox(group, [34, 14, 30], [0, 12, 0], mats.stone);
+        addCylinder(group, 8, 11, 58, [0, 48, 0], mats.accent, 24);
+        addSphere(group, 17, [0, 78, 0], mats.light, [1, 0.62, 1]);
+        addCylinder(group, 3, 4, 34, [0, 102, 0], mats.dark, 16);
+        group.userData.labelLift = 132;
+      } else if (style.type === "bridge") {
+        addBox(group, [88, 6, 12], [0, 29, 0], mats.accent);
+        addBox(group, [9, 48, 9], [-34, 31, 0], mats.stone);
+        addBox(group, [9, 48, 9], [34, 31, 0], mats.stone);
+        addTube(group, [[-41, 55, 0], [-20, 74, 0], [0, 79, 0], [20, 74, 0], [41, 55, 0]], 2.2, mats.roof, 40);
+        addCylinder(group, 3, 3, 12, [-18, 35, 0], mats.roof, 10);
+        addCylinder(group, 3, 3, 12, [18, 35, 0], mats.roof, 10);
+        group.userData.labelLift = 98;
+      } else if (style.type === "gate") {
+        addBox(group, [74, 24, 14], [0, 19, 0], mats.stone);
+        addBox(group, [20, 18, 17], [0, 16, 3], mats.dark);
+        addBox(group, [18, 32, 18], [-31, 24, 0], mats.stone);
+        addBox(group, [18, 32, 18], [31, 24, 0], mats.stone);
+        addRoof(group, 88, 24, 34, [0, 43, 0], mats.roof);
+        group.userData.labelLift = 88;
+      } else if (style.type === "hanok") {
+        addBox(group, [58, 20, 34], [0, 17, 0], mats.stone);
+        addRoof(group, 68, 22, 42, [0, 37, 0], mats.roof);
+        [-22, -7, 8, 23].forEach((x) => addCylinder(group, 2.2, 2.6, 22, [x, 17, 16], mats.wood, 10));
+        group.userData.labelLift = 82;
+      } else if (style.type === "pavilion") {
+        addCylinder(group, 24, 27, 5, [0, 10, 0], mats.stone, 24);
+        [-17, 17].forEach((x) => [-12, 12].forEach((z) => addCylinder(group, 2.5, 3, 26, [x, 24, z], mats.wood, 10)));
+        addRoof(group, 66, 24, 58, [0, 43, 0], mats.roof);
+        addSphere(group, 9, [0, 31, 0], mats.light, [1.4, 0.45, 1.4]);
+        group.userData.labelLift = 88;
+      } else if (style.type === "orange") {
+        const cheekMat = makeMaterial(0xff8f86, 0.72);
+        const shineMat = makeMaterial(0xfff5cf, 0.76);
+        const mouthMat = makeMaterial(0x5a2712, 0.72);
+        addCylinder(group, 44, 50, 10, [0, 9, 0], mats.stone, 32);
+        addSphere(group, 43, [0, 48, 0], mats.accent, [1.18, 0.88, 1.05]);
+        addSphere(group, 7, [0, 85, 0], mats.wood, [0.8, 0.7, 0.8]);
+        const leaf = addSphere(group, 17, [12, 89, 5], mats.roof, [1.35, 0.42, 0.82]);
+        leaf.rotation.z = -0.42;
+        leaf.rotation.y = 0.24;
+        addSphere(group, 10, [-18, 62, 43], mats.dark, [0.68, 0.86, 0.24]);
+        addSphere(group, 10, [18, 62, 43], mats.dark, [0.68, 0.86, 0.24]);
+        addSphere(group, 3.4, [-20, 66, 45], shineMat, [0.8, 0.8, 0.18]);
+        addSphere(group, 3.4, [16, 66, 45], shineMat, [0.8, 0.8, 0.18]);
+        addSphere(group, 8, [-32, 49, 42], cheekMat, [1.12, 0.7, 0.22]);
+        addSphere(group, 8, [32, 49, 42], cheekMat, [1.12, 0.7, 0.22]);
+        addSphere(group, 4.5, [-8, 42, 45], mouthMat, [1.25, 0.42, 0.18]);
+        addSphere(group, 5.2, [0, 39, 45], mouthMat, [1.25, 0.42, 0.18]);
+        addSphere(group, 4.5, [8, 42, 45], mouthMat, [1.25, 0.42, 0.18]);
+        addSphere(group, 8, [-22, 73, 38], shineMat, [0.82, 0.38, 0.12]);
+        addSphere(group, 5, [13, 76, 39], shineMat, [0.62, 0.3, 0.12]);
+        group.userData.faceCamera = true;
+        group.userData.labelLift = 112;
+      } else if (style.type === "lighthouse") {
+        addBox(group, [42, 16, 30], [0, 13, 0], mats.stone);
+        addCylinder(group, 9, 13, 58, [-12, 48, 0], mats.roof, 24);
+        addCylinder(group, 10, 10, 7, [-12, 79, 0], mats.light, 24);
+        addRoof(group, 27, 16, 27, [-12, 91, 0], mats.accent);
+        group.userData.labelLift = 112;
+      } else if (style.type === "dome") {
+        addCylinder(group, 32, 36, 14, [0, 13, 0], mats.stone, 32);
+        addSphere(group, 31, [0, 31, 0], mats.glass, [1, 0.52, 1]);
+        addCylinder(group, 4, 6, 52, [29, 43, -2], mats.accent, 16);
+        addSphere(group, 9, [29, 72, -2], mats.light, [1, 1, 1]);
+        group.userData.labelLift = 96;
+      } else if (style.type === "gallery") {
+        addBox(group, [66, 18, 36], [0, 16, 0], mats.stone);
+        addBox(group, [38, 28, 24], [-14, 34, 0], mats.glass);
+        addBox(group, [24, 42, 24], [22, 41, 0], mats.roof);
+        addCylinder(group, 3, 3, 32, [-32, 28, 19], mats.accent, 12);
+        addCylinder(group, 3, 3, 32, [-18, 28, 19], mats.accent, 12);
+        group.userData.labelLift = 94;
+      } else if (style.type === "harbor") {
+        addBox(group, [58, 18, 30], [-4, 16, 0], mats.stone);
+        addRoof(group, 54, 16, 36, [-4, 32, 0], mats.roof);
+        addCylinder(group, 6, 8, 46, [30, 39, -4], mats.accent, 18);
+        addCylinder(group, 8, 8, 7, [30, 65, -4], mats.light, 18);
+        addTube(group, [[-35, 24, -14], [-15, 37, -18], [8, 31, -15]], 2.2, mats.accent, 22);
+        group.userData.labelLift = 90;
+      } else if (style.type === "industrial") {
+        addBox(group, [64, 24, 36], [0, 19, 0], mats.stone);
+        addBox(group, [26, 34, 28], [-21, 31, 0], mats.glass);
+        addCylinder(group, 6, 8, 58, [30, 44, -8], mats.accent, 18);
+        addSphere(group, 10, [30, 77, -8], mats.light, [1, 0.55, 1]);
+        group.userData.labelLift = 104;
+      } else {
+        addBox(group, [68, 28, 32], [0, 22, 0], mats.stone);
+        addBox(group, [44, 20, 24], [0, 46, 0], mats.glass);
+        addRoof(group, 74, 14, 36, [0, 62, 0], mats.roof);
+        group.userData.labelLift = 92;
+      }
+
+      if (style.type !== "orange") {
+        group.rotation.y = seededUnit(key.length * 17 + style.accent) * Math.PI * 2;
+      }
+      return group;
+    }
+
+    function addCity(key, label, meta, lon, lat) {
+      const pos = project(lon, lat);
+      const marker = new THREE.Mesh(
+        new THREE.CylinderGeometry(30, 36, 6, 32),
+        new THREE.MeshStandardMaterial({ color: COLORS.marker, roughness: 0.58, metalness: 0.03 })
+      );
+      marker.position.set(pos.x, LAND_Y + 7, pos.z);
+      marker.castShadow = true;
+      marker.receiveShadow = true;
+      cityGroup.add(marker);
+
+      const landmark = buildLandmark(key);
+      landmark.position.set(pos.x, LAND_Y + 10, pos.z);
+      cityGroup.add(landmark);
+
+      const labelEl = document.createElement("div");
+      labelEl.className = "label";
+      labelEl.textContent = label;
+      labelLayer.append(labelEl);
+
+      cities[key] = {
+        key,
+        label,
+        meta,
+        lon,
+        lat,
+        position: pos,
+        node: marker,
+        landmark,
+        labelEl,
+        labelLift: landmark.userData.labelLift || 92,
+      };
+      cityLabels[key] = labelEl;
+    }
+
+    function seededUnit(seed) {
+      const value = Math.sin(seed * 12.9898) * 43758.5453;
+      return value - Math.floor(value);
+    }
+
+    function addCherryTree(x, z, scale = 1) {
+      const tree = new THREE.Group();
+      const trunkMat = new THREE.MeshStandardMaterial({ color: 0x77513a, roughness: 0.84 });
+      const branchMat = new THREE.MeshStandardMaterial({ color: 0x654431, roughness: 0.86 });
+      const trunkTop = [-2.5 * scale, 29 * scale, 1.5 * scale];
+      addCylinderBetween(tree, [0, 0, 0], trunkTop, 4.3 * scale, trunkMat, 10);
+
+      [
+        [trunkTop, [-21 * scale, 38 * scale, 2 * scale], 2.2],
+        [trunkTop, [18 * scale, 39 * scale, -4 * scale], 2.0],
+        [[-1 * scale, 23 * scale, 1 * scale], [-12 * scale, 34 * scale, -15 * scale], 1.8],
+        [[-2 * scale, 26 * scale, 1 * scale], [10 * scale, 36 * scale, 13 * scale], 1.8],
+      ].forEach(([start, end, radius]) => addCylinderBetween(tree, start, end, radius * scale, branchMat, 8));
+
+      const blossomMat = new THREE.MeshStandardMaterial({ color: 0xffc8d6, roughness: 0.82 });
+      const blossomLightMat = new THREE.MeshStandardMaterial({ color: 0xffedf1, roughness: 0.78 });
+      const blossomDeepMat = new THREE.MeshStandardMaterial({ color: 0xf4aebe, roughness: 0.82 });
+      const canopyOffsets = [
+        [0, 38, 0, 12, 1.4, 0.72, 1.05],
+        [-15, 36, 3, 10, 1.35, 0.72, 1.0],
+        [14, 37, -3, 10, 1.3, 0.7, 1.05],
+        [-6, 45, -8, 9, 1.22, 0.72, 0.95],
+        [8, 44, 9, 8, 1.18, 0.7, 1.0],
+        [-18, 31, -12, 7, 1.0, 0.7, 0.92],
+        [20, 32, 12, 7, 1.0, 0.68, 0.92],
+      ];
+      canopyOffsets.forEach(([cx, cy, cz, radius, sx, sy, sz], index) => {
+        const blossom = new THREE.Mesh(
+          new THREE.SphereGeometry(radius * scale, 18, 12),
+          index % 3 === 0 ? blossomLightMat : index % 3 === 1 ? blossomMat : blossomDeepMat
+        );
+        blossom.position.set(cx * scale, cy * scale, cz * scale);
+        blossom.scale.set(sx, sy, sz);
+        blossom.castShadow = true;
+        tree.add(blossom);
+      });
+
+      tree.position.set(x, LAND_Y + 7, z);
+      springGroup.add(tree);
+    }
+
+    function addCherryPetal(x, z, seed) {
+      const petal = new THREE.Mesh(
+        new THREE.SphereGeometry(2.0 + seededUnit(seed + 8) * 1.1, 10, 6),
+        new THREE.MeshBasicMaterial({ color: seededUnit(seed + 3) > 0.5 ? 0xffe1e8 : 0xffb8c8, transparent: true, opacity: 0.72 })
+      );
+      petal.scale.set(2.4, 0.16, 0.9);
+      petal.position.set(x, LAND_Y + 16 + seededUnit(seed + 9) * 24, z);
+      petal.rotation.set(seededUnit(seed + 1) * 0.4, seed, seededUnit(seed + 2) * 0.5);
+      springGroup.add(petal);
+    }
+
+    function addCamelliaTree(x, z, scale = 2, spin = 0) {
+      const tree = new THREE.Group();
+      const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5c3a25, roughness: 0.88 });
+      const branchMat = new THREE.MeshStandardMaterial({ color: 0x46301f, roughness: 0.9 });
+      const leafDarkMat = new THREE.MeshStandardMaterial({ color: 0x123f2d, roughness: 0.86 });
+      const leafMat = new THREE.MeshStandardMaterial({ color: 0x1f6f42, roughness: 0.84 });
+      const leafLightMat = new THREE.MeshStandardMaterial({ color: 0x2d8a4f, roughness: 0.82 });
+      const flowerMats = [
+        new THREE.MeshStandardMaterial({ color: 0xff2f73, roughness: 0.7 }),
+        new THREE.MeshStandardMaterial({ color: 0xff6f9d, roughness: 0.68 }),
+        new THREE.MeshStandardMaterial({ color: 0xffb4c8, roughness: 0.66 }),
+      ];
+      const trunkTop = [0, 30 * scale, 0];
+      addCylinderBetween(tree, [0, 0, 0], trunkTop, 4.2 * scale, trunkMat, 12);
+      [
+        [trunkTop, [-13 * scale, 39 * scale, 4 * scale], 2.1],
+        [trunkTop, [14 * scale, 40 * scale, -3 * scale], 2.0],
+        [[0, 23 * scale, 0], [-9 * scale, 35 * scale, -10 * scale], 1.7],
+        [[0, 24 * scale, 0], [10 * scale, 36 * scale, 10 * scale], 1.7],
+      ].forEach(([start, end, radius]) => addCylinderBetween(tree, start, end, radius * scale, branchMat, 10));
+
+      const canopy = [
+        [0, 43, 0, 19, 1.25, 1.05, 1.08],
+        [-15, 42, 3, 16, 1.18, 1.0, 1.05],
+        [15, 42, -2, 16, 1.16, 0.98, 1.05],
+        [-5, 55, -4, 15, 1.08, 1.0, 1.0],
+        [8, 54, 8, 14, 1.05, 0.95, 1.0],
+        [-22, 35, -8, 12, 1.0, 0.95, 0.95],
+        [23, 36, 9, 12, 1.0, 0.94, 0.95],
+        [0, 34, 13, 13, 1.08, 0.88, 0.9],
+      ];
+      canopy.forEach(([cx, cy, cz, radius, sx, sy, sz], index) => {
+        const leaf = new THREE.Mesh(
+          new THREE.SphereGeometry(radius * scale, 18, 12),
+          index % 3 === 0 ? leafLightMat : index % 3 === 1 ? leafMat : leafDarkMat
+        );
+        leaf.position.set(cx * scale, cy * scale, cz * scale);
+        leaf.scale.set(sx, sy, sz);
+        leaf.castShadow = true;
+        tree.add(leaf);
+      });
+
+      for (let i = 0; i < 38; i += 1) {
+        const angle = i * 2.399 + spin;
+        const height = 35 + seededUnit(i + 91) * 27;
+        const radius = 12 + seededUnit(i + 17) * 28;
+        const flower = new THREE.Mesh(
+          new THREE.SphereGeometry((2.0 + seededUnit(i + 5) * 1.35) * scale, 10, 8),
+          flowerMats[i % flowerMats.length]
+        );
+        flower.position.set(Math.cos(angle) * radius * scale, height * scale, Math.sin(angle) * radius * 0.72 * scale);
+        flower.scale.set(1.18, 0.72, 0.72);
+        flower.castShadow = true;
+        tree.add(flower);
+      }
+
+      for (let i = 0; i < 16; i += 1) {
+        const angle = i * 2.15 + spin;
+        const petal = new THREE.Mesh(
+          new THREE.SphereGeometry((1.6 + seededUnit(i + 44) * 0.9) * scale, 8, 5),
+          flowerMats[(i + 1) % flowerMats.length]
+        );
+        petal.position.set(Math.cos(angle) * (24 + seededUnit(i) * 22) * scale, 1.2 * scale, Math.sin(angle) * (14 + seededUnit(i + 6) * 18) * scale);
+        petal.scale.set(1.7, 0.14, 0.8);
+        tree.add(petal);
+      }
+
+      tree.position.set(x, LAND_Y + 4, z);
+      tree.rotation.y = spin;
+      springGroup.add(tree);
+    }
+
+    function addCamelliaGrove() {
+      const jejuCenter = project(CITY_DATA.Jeju[2], CITY_DATA.Jeju[3]);
+      CAMELLIA_TREES.forEach((tree) => {
+        addCamelliaTree(jejuCenter.x + tree.dx, jejuCenter.z + tree.dz, tree.scale, tree.spin);
+      });
+    }
+
+    function createHelloJejuTexture() {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1024;
+      canvas.height = 512;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "rgba(14, 17, 17, 0.92)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.translate(132, 74);
+      ctx.beginPath();
+      ctx.moveTo(50, 220);
+      ctx.bezierCurveTo(76, 100, 210, 46, 346, 58);
+      ctx.bezierCurveTo(438, 18, 558, 22, 638, 74);
+      ctx.bezierCurveTo(752, 82, 858, 150, 860, 246);
+      ctx.bezierCurveTo(806, 330, 664, 356, 528, 350);
+      ctx.bezierCurveTo(406, 392, 236, 368, 158, 320);
+      ctx.bezierCurveTo(88, 324, 30, 292, 50, 220);
+      ctx.closePath();
+      const mossGradient = ctx.createLinearGradient(80, 70, 800, 360);
+      mossGradient.addColorStop(0, "#17351f");
+      mossGradient.addColorStop(0.42, "#4f8b48");
+      mossGradient.addColorStop(1, "#102817");
+      ctx.fillStyle = mossGradient;
+      ctx.fill();
+      ctx.clip();
+
+      for (let i = 0; i < 760; i += 1) {
+        const x = Math.random() * 850;
+        const y = Math.random() * 360;
+        const r = 3 + Math.random() * 9;
+        ctx.fillStyle = Math.random() > 0.54 ? "rgba(132,178,95,0.58)" : "rgba(24,64,36,0.68)";
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+
+      ctx.font = "bold 94px Arial, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.shadowColor = "rgba(0,0,0,0.55)";
+      ctx.shadowBlur = 16;
+      ctx.shadowOffsetY = 9;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillText("HELLO JEJU", 512, 272);
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetY = 0;
+
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 11;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(730, 204);
+      ctx.lineTo(754, 146);
+      ctx.moveTo(754, 146);
+      ctx.quadraticCurveTo(718, 124, 682, 156);
+      ctx.moveTo(754, 146);
+      ctx.quadraticCurveTo(758, 104, 812, 116);
+      ctx.moveTo(754, 146);
+      ctx.quadraticCurveTo(792, 134, 818, 174);
+      ctx.stroke();
+
+      ctx.font = "bold 32px Arial, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText("JEJU PHOTO SPOT", 912, 430);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.magFilter = THREE.NearestFilter;
+      texture.minFilter = THREE.LinearFilter;
+      return texture;
+    }
+
+    function addHelloJejuSign() {
+      const jejuCenter = project(CITY_DATA.Jeju[2], CITY_DATA.Jeju[3]);
+      const group = new THREE.Group();
+      const darkMat = new THREE.MeshStandardMaterial({ color: 0x111414, roughness: 0.78 });
+      const texture = createHelloJejuTexture();
+      const signMat = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+
+      addBox(group, [340, 170, 10], [0, 136, -5], darkMat);
+      const sign = new THREE.Mesh(new THREE.PlaneGeometry(324, 162), signMat);
+      sign.position.set(0, 136, 2);
+      sign.castShadow = true;
+      group.add(sign);
+      group.position.set(jejuCenter.x - 245, LAND_Y + 3, jejuCenter.z - 92);
+      cityGroup.add(group);
+    }
+
+    function addCherryGroves() {
+      CHERRY_GROVES.forEach((grove, groveIndex) => {
+        const center = project(grove.lon, grove.lat);
+        for (let i = 0; i < grove.count; i += 1) {
+          const angle = i * 2.399 + groveIndex * 0.71;
+          const spread = grove.radius * (0.35 + Math.abs(seededUnit(i + groveIndex * 37)) * 0.72);
+          const x = center.x + Math.cos(angle) * spread;
+          const z = center.z + Math.sin(angle) * spread;
+          if (!canStandAt(x, z)) continue;
+          const scale = 0.74 + seededUnit(i * 3 + groveIndex) * 0.38;
+          addCherryTree(x, z, scale);
+          if (i % 2 === 0) addCherryPetal(x + Math.cos(angle + 1.7) * 28, z + Math.sin(angle + 1.7) * 28, i + groveIndex * 19);
+        }
+      });
+    }
+
+    function buildPlayer() {
+      const group = new THREE.Group();
+      group.userData.isDiaryPixelPlayer = true;
+
+      const mat = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.86, metalness: 0, flatShading: true });
+      const ink = mat(0x111111);
+      const skin = mat(0xf1bf8d);
+      const hair = mat(0x191313);
+      const shirt = mat(0x89a8dc);
+      const pants = mat(0x26334b);
+      const blush = mat(0xff8c8c);
+      const cap = mat(0xe4482f);
+      const paper = mat(0xffffff);
+      const yellow = mat(0xf09a19);
+
+      function cube(size, pos, material) {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), material);
+        mesh.position.set(pos[0], pos[1], pos[2]);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        group.add(mesh);
+        return mesh;
+      }
+
+      const shadow = new THREE.Mesh(
+        new THREE.CircleGeometry(22, 8),
+        new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.18 })
+      );
+      shadow.rotation.x = -Math.PI / 2;
+      shadow.position.y = -16.5;
+      group.add(shadow);
+
+      cube([18, 8, 12], [-8, -12, 2], pants);
+      cube([18, 8, 12], [8, -12, 2], pants);
+      cube([19, 7, 16], [-8, -18, 6], ink);
+      cube([19, 7, 16], [8, -18, 6], ink);
+      cube([36, 34, 18], [0, 6, 3], shirt);
+      cube([13, 28, 14], [-25, 6, 4], skin);
+      cube([13, 28, 14], [25, 6, 4], skin);
+      cube([44, 40, 28], [0, 45, 5], skin);
+      cube([50, 18, 30], [0, 62, 0], hair);
+      cube([14, 20, 30], [-22, 48, 1], hair);
+      cube([14, 20, 30], [22, 48, 1], hair);
+      cube([7, 9, 4], [-9, 47, 20], ink);
+      cube([7, 9, 4], [9, 47, 20], ink);
+      cube([8, 4, 4], [0, 35, 21], ink);
+      cube([8, 4, 4], [-17, 38, 21], blush);
+      cube([8, 4, 4], [17, 38, 21], blush);
+      cube([23, 8, 20], [0, 64, 17], cap);
+      cube([42, 9, 34], [0, 72, 0], cap);
+      cube([22, 28, 5], [28, 4, 14], paper).rotation.z = -0.14;
+      cube([5, 28, 5], [-30, 2, 15], yellow).rotation.z = 0.18;
+
+      return group;
+    }
+
+    function buildBananaBoat() {
+      const group = new THREE.Group();
+      group.userData.isBananaBoat = true;
+
+      // 색상 정의
+      const yellowMat = new THREE.MeshStandardMaterial({ color: 0xffd700, roughness: 0.6, metalness: 0.3 });
+      const darkYellowMat = new THREE.MeshStandardMaterial({ color: 0xffb300, roughness: 0.7, metalness: 0.2 });
+      const redMat = new THREE.MeshStandardMaterial({ color: 0xff4444, roughness: 0.5, metalness: 0.1 });
+      const darkRedMat = new THREE.MeshStandardMaterial({ color: 0xcc0000, roughness: 0.6, metalness: 0 });
+      const blackMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.8, metalness: 0.1 });
+      const grayMat = new THREE.MeshStandardMaterial({ color: 0x555555, roughness: 0.7, metalness: 0 });
+
+      // 메인 보트 선체 (개선된 형태)
+      // 앞부분과 뒷부분이 뾰족한 보트 형태
+      const hullGroup = new THREE.Group();
+
+      // 메인 선체 바디
+      const mainHullGeom = new THREE.BoxGeometry(180, 35, 70);
+      const mainHull = new THREE.Mesh(mainHullGeom, yellowMat);
+      mainHull.position.y = 2;
+      mainHull.castShadow = true;
+      mainHull.receiveShadow = true;
+      hullGroup.add(mainHull);
+
+      // 보트 앞부분 (bow) - 뾰족한 삼각형 모양
+      const bowGeom = new THREE.ConeGeometry(25, 80, 8);
+      const bow = new THREE.Mesh(bowGeom, darkYellowMat);
+      bow.position.set(90, 2, 0);
+      bow.rotation.z = Math.PI / 2;
+      bow.castShadow = true;
+      hullGroup.add(bow);
+
+      // 보트 뒷부분 (stern) - 반둥근 모양
+      const sternGeom = new THREE.ConeGeometry(22, 60, 8);
+      const stern = new THREE.Mesh(sternGeom, darkYellowMat);
+      stern.position.set(-100, 2, 0);
+      stern.rotation.z = -Math.PI / 2;
+      stern.castShadow = true;
+      hullGroup.add(stern);
+
+      group.add(hullGroup);
+
+      // 보트 가장자리 (side rails) - 빨간색
+      const railGeom = new THREE.BoxGeometry(190, 12, 8);
+      const railLeft = new THREE.Mesh(railGeom, redMat);
+      railLeft.position.set(0, 25, 40);
+      railLeft.castShadow = true;
+      group.add(railLeft);
+
+      const railRight = new THREE.Mesh(railGeom, redMat);
+      railRight.position.set(0, 25, -40);
+      railRight.castShadow = true;
+      group.add(railRight);
+
+      // 앞 범퍼
+      const frontBumperGeom = new THREE.CylinderGeometry(15, 15, 60, 8);
+      const frontBumper = new THREE.Mesh(frontBumperGeom, darkRedMat);
+      frontBumper.position.set(120, 8, 0);
+      frontBumper.rotation.z = Math.PI / 2;
+      frontBumper.castShadow = true;
+      group.add(frontBumper);
+
+      // 뒤 범퍼
+      const backBumperGeom = new THREE.CylinderGeometry(12, 12, 50, 8);
+      const backBumper = new THREE.Mesh(backBumperGeom, darkRedMat);
+      backBumper.position.set(-120, 8, 0);
+      backBumper.rotation.z = Math.PI / 2;
+      backBumper.castShadow = true;
+      group.add(backBumper);
+
+      // 큰 손잡이 (3개의 보트 손잡이)
+      // 앞 손잡이
+      const handleGeom = new THREE.CylinderGeometry(12, 12, 150, 10);
+      const handle1 = new THREE.Mesh(handleGeom, redMat);
+      handle1.position.set(40, 50, 0);
+      handle1.rotation.z = Math.PI / 2;
+      handle1.castShadow = true;
+      group.add(handle1);
+
+      // 중간 손잡이
+      const handle2 = new THREE.Mesh(handleGeom, redMat);
+      handle2.position.set(0, 50, 0);
+      handle2.rotation.z = Math.PI / 2;
+      handle2.castShadow = true;
+      group.add(handle2);
+
+      // 뒤 손잡이
+      const handle3 = new THREE.Mesh(handleGeom, redMat);
+      handle3.position.set(-40, 50, 0);
+      handle3.rotation.z = Math.PI / 2;
+      handle3.castShadow = true;
+      group.add(handle3);
+
+      // 손잡이 그립 끝부분 (큰 검은색 구)
+      const gripGeom = new THREE.SphereGeometry(16, 10, 10);
+      const grips = [
+        { x: 40, label: 'front' },
+        { x: 0, label: 'mid' },
+        { x: -40, label: 'back' }
+      ];
+      grips.forEach(grip => {
+        const grip1 = new THREE.Mesh(gripGeom, blackMat);
+        grip1.position.set(grip.x + 75, 50, 0);
+        grip1.castShadow = true;
+        group.add(grip1);
+
+        const grip2 = new THREE.Mesh(gripGeom, blackMat);
+        grip2.position.set(grip.x - 75, 50, 0);
+        grip2.castShadow = true;
+        group.add(grip2);
+      });
+
+      // 보트 앞 데크 영역 (조명 시뮬레이션)
+      const deckGeom = new THREE.BoxGeometry(100, 2, 50);
+      const deck = new THREE.Mesh(deckGeom, darkYellowMat);
+      deck.position.set(70, 20, 0);
+      deck.castShadow = true;
+      group.add(deck);
+
+      // 보트 시트 영역 (3개 구간)
+      const seatBoxGeom = new THREE.BoxGeometry(50, 8, 55);
+      const seats = [
+        { x: 50, z: 0 },
+        { x: 0, z: 0 },
+        { x: -50, z: 0 }
+      ];
+      seats.forEach(seat => {
+        const seatBox = new THREE.Mesh(seatBoxGeom, darkYellowMat);
+        seatBox.position.set(seat.x, 22, seat.z);
+        seatBox.castShadow = true;
+        group.add(seatBox);
+      });
+
+      // 보트 중앙 통로 장식 (줄 표현)
+      const ropeGeom = new THREE.CylinderGeometry(3, 3, 200, 6);
+      const rope = new THREE.Mesh(ropeGeom, grayMat);
+      rope.position.set(0, 25, 0);
+      rope.rotation.z = Math.PI / 2;
+      rope.castShadow = true;
+      group.add(rope);
+
+      // 돛 장대 (마스트)
+      const mastGeom = new THREE.CylinderGeometry(4, 4, 200, 8);
+      const mastMat = new THREE.MeshStandardMaterial({ color: 0x8b7355, roughness: 0.8, metalness: 0 });
+      const mast = new THREE.Mesh(mastGeom, mastMat);
+      mast.position.set(10, 65, 0);
+      mast.castShadow = true;
+      group.add(mast);
+
+      // 돛 (흰색 삼각형)
+      const sailShape = new THREE.Shape();
+      sailShape.moveTo(0, 0);
+      sailShape.lineTo(0, 100);
+      sailShape.lineTo(80, 0);
+      sailShape.lineTo(0, 0);
+      const sailGeom = new THREE.ShapeGeometry(sailShape);
+      const sailMat = new THREE.MeshStandardMaterial({
+        color: 0xf5f5f5,
+        roughness: 0.3,
+        metalness: 0,
+        side: THREE.DoubleSide
+      });
+      const sail = new THREE.Mesh(sailGeom, sailMat);
+      sail.position.set(10, 65, 5);
+      sail.rotation.x = -0.1; // 약간의 각도
+      sail.castShadow = true;
+      group.add(sail);
+
+      // 돛 로프 (아래)
+      const ropeBottomGeom = new THREE.CylinderGeometry(2, 2, 85, 4);
+      const ropeBottom = new THREE.Mesh(ropeBottomGeom, grayMat);
+      ropeBottom.position.set(50, 20, 5);
+      ropeBottom.rotation.z = Math.atan2(100, 80) * 0.5;
+      ropeBottom.castShadow = true;
+      group.add(ropeBottom);
+
+      // 큰 그림자
+      const shadowGeom = new THREE.PlaneGeometry(240, 120);
+      const shadow = new THREE.Mesh(
+        shadowGeom,
+        new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.2 })
+      );
+      shadow.rotation.x = -Math.PI / 2;
+      shadow.position.y = -25;
+      group.add(shadow);
+
+      return group;
+    }
+
+    function buildRabbit() {
+      const group = new THREE.Group();
+      group.userData.isRabbit = true;
+
+      // 색상
+      const whiteMat = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.8, metalness: 0 });
+      const pinkMat = new THREE.MeshStandardMaterial({ color: 0xffb3d9, roughness: 0.7, metalness: 0 });
+      const blackMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 0.9, metalness: 0 });
+      const darkPinkMat = new THREE.MeshStandardMaterial({ color: 0xff69b4, roughness: 0.7, metalness: 0 });
+
+      // 몸통
+      const bodyGeom = new THREE.BoxGeometry(32, 32, 32);
+      const body = new THREE.Mesh(bodyGeom, whiteMat);
+      body.position.y = 0;
+      body.castShadow = true;
+      group.add(body);
+
+      // 머리
+      const headGeom = new THREE.BoxGeometry(28, 28, 28);
+      const head = new THREE.Mesh(headGeom, whiteMat);
+      head.position.set(0, 32, 0);
+      head.castShadow = true;
+      group.add(head);
+
+      // 왼쪽 귀
+      const earGeom = new THREE.BoxGeometry(10, 30, 8);
+      const earLeft = new THREE.Mesh(earGeom, whiteMat);
+      earLeft.position.set(-12, 50, 0);
+      earLeft.castShadow = true;
+      group.add(earLeft);
+
+      // 왼쪽 귀 안쪽 (분홍)
+      const earInnerGeom = new THREE.BoxGeometry(6, 24, 4);
+      const earInnerLeft = new THREE.Mesh(earInnerGeom, pinkMat);
+      earInnerLeft.position.set(-12, 50, 1);
+      earInnerLeft.castShadow = true;
+      group.add(earInnerLeft);
+
+      // 오른쪽 귀
+      const earRight = new THREE.Mesh(earGeom, whiteMat);
+      earRight.position.set(12, 50, 0);
+      earRight.castShadow = true;
+      group.add(earRight);
+
+      // 오른쪽 귀 안쪽 (분홍)
+      const earInnerRight = new THREE.Mesh(earInnerGeom, pinkMat);
+      earInnerRight.position.set(12, 50, 1);
+      earInnerRight.castShadow = true;
+      group.add(earInnerRight);
+
+      // 왼쪽 눈
+      const eyeGeom = new THREE.BoxGeometry(6, 8, 3);
+      const eyeLeft = new THREE.Mesh(eyeGeom, blackMat);
+      eyeLeft.position.set(-6, 36, 14);
+      eyeLeft.castShadow = true;
+      group.add(eyeLeft);
+
+      // 오른쪽 눈
+      const eyeRight = new THREE.Mesh(eyeGeom, blackMat);
+      eyeRight.position.set(6, 36, 14);
+      eyeRight.castShadow = true;
+      group.add(eyeRight);
+
+      // 코
+      const noseGeom = new THREE.BoxGeometry(4, 4, 3);
+      const nose = new THREE.Mesh(noseGeom, darkPinkMat);
+      nose.position.set(0, 30, 14);
+      nose.castShadow = true;
+      group.add(nose);
+
+      // 왼쪽 볼
+      const cheekGeom = new THREE.BoxGeometry(6, 6, 3);
+      const cheekLeft = new THREE.Mesh(cheekGeom, pinkMat);
+      cheekLeft.position.set(-14, 32, 14);
+      cheekLeft.castShadow = true;
+      group.add(cheekLeft);
+
+      // 오른쪽 볼
+      const cheekRight = new THREE.Mesh(cheekGeom, pinkMat);
+      cheekRight.position.set(14, 32, 14);
+      cheekRight.castShadow = true;
+      group.add(cheekRight);
+
+      // 왼쪽 다리
+      const legGeom = new THREE.BoxGeometry(10, 20, 10);
+      const legLeft = new THREE.Mesh(legGeom, whiteMat);
+      legLeft.position.set(-10, -12, 0);
+      legLeft.castShadow = true;
+      group.add(legLeft);
+
+      // 오른쪽 다리
+      const legRight = new THREE.Mesh(legGeom, whiteMat);
+      legRight.position.set(10, -12, 0);
+      legRight.castShadow = true;
+      group.add(legRight);
+
+      // 꼬리
+      const tailGeom = new THREE.BoxGeometry(12, 8, 8);
+      const tail = new THREE.Mesh(tailGeom, whiteMat);
+      tail.position.set(0, -10, -18);
+      tail.castShadow = true;
+      group.add(tail);
+
+      // 그림자
+      const shadowGeom = new THREE.PlaneGeometry(50, 50);
+      const shadow = new THREE.Mesh(
+        shadowGeom,
+        new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.15 })
+      );
+      shadow.rotation.x = -Math.PI / 2;
+      shadow.position.y = -20;
+      group.add(shadow);
+
+      return group;
+    }
+
+    // 토끼 NPC 시스템
+    const rabbits = [];
+
+    class RabbitNPC {
+      constructor(x, z, options = {}) {
+        this.mesh = buildRabbit();
+        this.mesh.position.set(x, PLAYER_Y, z);
+        this.homeX = options.homeX ?? x;
+        this.homeZ = options.homeZ ?? z;
+        this.roamRadius = options.roamRadius ?? 240;
+        this.targetX = x;
+        this.targetZ = z;
+        this.speed = 180; // 플레이어 속도의 약 75% 정도
+        this.changeDirectionTimer = 0;
+        this.changeDirectionInterval = 120 + Math.random() * 80; // 2-3초
+        this.hasGreeted = {};
+        this.greetDistance = 300;
+      }
+
+      update(playerPos, deltaTime) {
+        // 방향 변경 타이머
+        this.changeDirectionTimer -= deltaTime * 1000;
+        if (this.changeDirectionTimer <= 0) {
+          this.setNewTarget(playerPos);
+          this.changeDirectionTimer = this.changeDirectionInterval;
+        }
+
+        // 목표 위치로 이동
+        const dx = this.targetX - this.mesh.position.x;
+        const dz = this.targetZ - this.mesh.position.z;
+        const dist = Math.hypot(dx, dz);
+
+        if (dist > 5) {
+          const moveX = (dx / dist) * this.speed * deltaTime;
+          const moveZ = (dz / dist) * this.speed * deltaTime;
+
+          // 충돌 감지 (산, 바다 피하기)
+          const nextX = this.mesh.position.x + moveX;
+          const nextZ = this.mesh.position.z + moveZ;
+
+          if (isLand(nextX, nextZ) && !isMountainBlocked(nextX, nextZ) && !isSea(nextX, nextZ)) {
+            this.mesh.position.x = nextX;
+            this.mesh.position.z = nextZ;
+
+            // 방향 회전
+            const angle = Math.atan2(dx, dz);
+            this.mesh.rotation.y = angle;
+          } else {
+            // 충돌했으면 새로운 목표 설정
+            this.setNewTarget(playerPos);
+          }
+        }
+
+        // 플레이어와의 상호작용 (근처에 가면 인사)
+        const distToPlayer = Math.hypot(
+          playerPos.x - this.mesh.position.x,
+          playerPos.z - this.mesh.position.z
+        );
+
+        if (distToPlayer < this.greetDistance) {
+          if (!this.hasGreeted.greeted) {
+            showToast("🐰 안녕하세요!");
+            this.hasGreeted.greeted = true;
+            this.hasGreeted.time = Date.now();
+          }
+        } else {
+          // 거리가 멀어지면 인사 상태 리셋
+          if (Date.now() - (this.hasGreeted.time || 0) > 3000) {
+            this.hasGreeted = {};
+          }
+        }
+      }
+
+      setNewTarget(playerPos) {
+        // 랜덤한 위치 또는 플레이어 주변 탐색
+        let found = false;
+        let attempts = 0;
+
+        while (!found && attempts < 18) {
+          const angle = Math.random() * Math.PI * 2;
+          const distance = 24 + Math.random() * this.roamRadius;
+          const x = this.homeX + Math.cos(angle) * distance;
+          const z = this.homeZ + Math.sin(angle) * distance;
+
+          if (isLand(x, z) && !isMountainBlocked(x, z) && !isSea(x, z)) {
+            this.targetX = x;
+            this.targetZ = z;
+            found = true;
+          }
+          attempts++;
+        }
+
+        if (!found) {
+          // 실패 시 현재 위치 유지
+          this.targetX = this.mesh.position.x;
+          this.targetZ = this.mesh.position.z;
+        }
+      }
+    }
+
+    function initRabbits() {
+      // 토끼 2마리 생성
+      const mokpo = cities.Mokpo?.position || project(CITY_DATA.Mokpo[2], CITY_DATA.Mokpo[3]);
+      const homeX = mokpo.x + 115;
+      const homeZ = mokpo.z + 48;
+      const rabbit1 = new RabbitNPC(homeX - 28, homeZ + 12, { homeX, homeZ, roamRadius: 118 });
+      const rabbit2 = new RabbitNPC(homeX + 36, homeZ - 20, { homeX, homeZ, roamRadius: 118 });
+
+      rabbits.push(rabbit1, rabbit2);
+      rabbitGroup.add(rabbit1.mesh);
+      rabbitGroup.add(rabbit2.mesh);
+    }
+
+    function updateRabbits(playerPos, deltaTime) {
+      for (const rabbit of rabbits) {
+        rabbit.update(playerPos, deltaTime);
+      }
+    }
+
+    function pointInPolygon(lon, lat, polygon) {
+      let inside = false;
+      for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i, i += 1) {
+        const xi = polygon[i][0], yi = polygon[i][1];
+        const xj = polygon[j][0], yj = polygon[j][1];
+        const intersect = ((yi > lat) !== (yj > lat)) && (lon < (xj - xi) * (lat - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    function insideIslandWorld(x, z, island) {
+      const c = project(island.lon, island.lat);
+      const angle = -island.angle * Math.PI / 180;
+      const dx = x - c.x;
+      const dz = z - c.z;
+      const rx = dx * Math.cos(angle) - dz * Math.sin(angle);
+      const rz = dx * Math.sin(angle) + dz * Math.cos(angle);
+      return (rx * rx) / (island.rx * island.rx) + (rz * rz) / (island.rz * island.rz) <= 1;
+    }
+
+    function distanceToSegment2D(x, z, a, b) {
+      const abx = b.x - a.x;
+      const abz = b.z - a.z;
+      const apx = x - a.x;
+      const apz = z - a.z;
+      const lengthSq = abx * abx + abz * abz;
+      if (lengthSq === 0) return Math.hypot(apx, apz);
+      const t = Math.max(0, Math.min(1, (apx * abx + apz * abz) / lengthSq));
+      const px = a.x + abx * t;
+      const pz = a.z + abz * t;
+      return Math.hypot(x - px, z - pz);
+    }
+
+    function isNearMountainPass(x, z, range) {
+      return range.passes.some(([lon, lat]) => {
+        const pass = project(lon, lat);
+        return Math.hypot(x - pass.x, z - pass.z) <= range.passRadius;
+      });
+    }
+
+    function isMountainBlocked(x, z) {
+      for (const range of MOUNTAIN_RANGES) {
+        if (isNearMountainPass(x, z, range)) continue;
+        const points = range.points.map(([lon, lat]) => project(lon, lat));
+        for (let i = 0; i < points.length - 1; i += 1) {
+          if (distanceToSegment2D(x, z, points[i], points[i + 1]) <= range.width) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function isLand(x, z) {
+      if (koreaTerrain?.isLand?.(x, z)) return true;
+      const [lon, lat] = lonLatFromWorld(x, z);
+      if (pointInPolygon(lon, lat, MAINLAND_LL)) return true;
+      if (LAND_REINFORCEMENTS.some((patch) => insideIslandWorld(x, z, patch))) return true;
+      return ISLANDS.some((island) => insideIslandWorld(x, z, island));
+    }
+
+    function isSea(x, z) {
+      // 대한민국 영역 내 바다 판정 (경계 내 비육지 영역)
+      const [lon, lat] = lonLatFromWorld(x, z);
+      // 한반도 범위 내
+      const inRange = lon >= 124 && lon <= 133 && lat >= 32 && lat <= 40;
+      // 범위 내이면서 육지가 아니면 바다
+      return inRange && !isLand(x, z);
+    }
+
+    function canStandAt(x, z) {
+      // 육지에 서있거나 바다에서 걸을 수 있음
+      const onLand = isLand(x, z) && (!SHOW_MOUNTAINS || !isMountainBlocked(x, z));
+      const onSea = isSea(x, z);
+      return onLand || onSea;
+    }
+
+    function landingPosition(city) {
+      const offsets = [
+        new THREE.Vector3(46, 0, 54),
+        new THREE.Vector3(-54, 0, 42),
+        new THREE.Vector3(58, 0, -38),
+        new THREE.Vector3(-42, 0, -54),
+        new THREE.Vector3(0, 0, 0),
+      ];
+      for (const offset of offsets) {
+        const candidate = city.position.clone().add(offset).setY(PLAYER_Y);
+        if (canStandAt(candidate.x, candidate.z)) return candidate;
+      }
+      return city.position.clone().setY(PLAYER_Y);
+    }
+
+    function closestCity(position, range = 115) {
+      let best = null;
+      let bestDist = range;
+      for (const city of Object.values(cities)) {
+        const dist = city.position.distanceTo(position);
+        if (dist < bestDist) {
+          best = city;
+          bestDist = dist;
+        }
+      }
+      return best;
+    }
+
+    function ferryTarget(position, range = 78) {
+      for (const [a, b] of FERRIES) {
+        if (cities[a].position.distanceTo(position) < range) return cities[b];
+        if (cities[b].position.distanceTo(position) < range) return cities[a];
+      }
+      return null;
+    }
+
+    function showToast(message) {
+      toastEl.textContent = message;
+      toastEl.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toastEl.classList.remove("show"), 1500);
+    }
+
+    function renderInventory() {
+      inventoryListEl.textContent = "";
+      const items = Array.from(inventory.values());
+      inventoryButtonCountEl.textContent = items.length.toString();
+      inventorySummaryEl.textContent = items.length
+        ? `?? ?? ?? ${items.length}/${Object.keys(REGION_REWARDS).length}`
+        : "?? ?? ??? ??? ????.";
+
+      if (!items.length) {
+        const empty = document.createElement("div");
+        empty.className = "inventory-empty";
+        empty.textContent = "?? ??? ??? ????.";
+        inventoryListEl.append(empty);
+        return;
+      }
+
+      items.forEach(({ city, reward }) => {
+        const row = document.createElement(reward.type === "costume" ? "button" : "article");
+        row.className = `inventory-item${reward.type === "costume" ? " is-costume" : ""}${reward.costume?.key === equippedCostumeKey ? " equipped" : ""}`;
+        if (reward.type === "costume") {
+          row.type = "button";
+          row.addEventListener("click", () => equipCostume(reward.costume.key));
+        }
+
+        const mark = document.createElement("div");
+        mark.className = "item-mark";
+        if (reward.costume?.inventorySrc) {
+          const image = document.createElement("img");
+          image.src = reward.costume.inventorySrc;
+          image.alt = "";
+          mark.append(image);
+        } else {
+          mark.textContent = reward.mark;
+        }
+
+        const body = document.createElement("div");
+        const name = document.createElement("p");
+        name.className = "item-name";
+        name.textContent = reward.item;
+
+        const meta = document.createElement("p");
+        meta.className = "item-meta";
+        meta.textContent = reward.type === "costume" && reward.costume?.key === equippedCostumeKey
+          ? `${city.label} ? ?? ?`
+          : `${city.label} ? ${reward.kind}`;
+
+        body.append(name, meta);
+        row.append(mark, body);
+        inventoryListEl.append(row);
+      });
+    }
+
+    function costumeForCity(cityKey) {
+      return REGION_COSTUMES[cityKey] || null;
+    }
+
+    function addCostumeReward(city) {
+      const costume = costumeForCity(city.key);
+      if (!costume) return false;
+      inventory.set(`${city.key}:costume`, {
+        city,
+        reward: {
+          item: costume.label,
+          kind: "outfit",
+          mark: "C",
+          type: "costume",
+          costume,
+        },
+      });
+      return true;
+    }
+
+    function notifyCultureRewardCleared(city, reward) {
+      const costume = costumeForCity(city.key);
+      const detail = {
+        regionKey: city.key,
+        regionName: city.label,
+        item: costume?.label || reward?.item,
+        kind: "지역 의상",
+        mark: "의상",
+        image: costume?.inventorySrc,
+        mission: reward?.mission,
+      };
+
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: "culture:minigame-clear", detail }, window.location.origin);
+        return;
+      }
+
+      document.dispatchEvent(new CustomEvent("culture:minigame-clear", { detail }));
+    }
+
+    function disposeCostumeObject(object) {
+      object.traverse((node) => {
+        if (!node.isMesh) return;
+        node.geometry?.dispose();
+        if (Array.isArray(node.material)) node.material.forEach((material) => material.dispose());
+        else node.material?.dispose();
+      });
+    }
+
+    function buildCostumeMesh(costume) {
+      const style = costume.style;
+      const group = new THREE.Group();
+      group.name = `Costume3D_${costume.key}`;
+
+      const mat = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.82, metalness: 0, flatShading: true });
+      const jacket = mat(style.jacket);
+      const trim = mat(style.trim);
+      const pants = mat(style.pants);
+      const hat = mat(style.hat);
+      const accent = mat(style.accent);
+      const dark = mat(0x111111);
+      const white = mat(0xffffff);
+
+      const cube = (size, pos, material, rot = [0, 0, 0]) => {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), material);
+        mesh.position.set(pos[0], pos[1], pos[2]);
+        mesh.rotation.set(rot[0], rot[1], rot[2]);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        group.add(mesh);
+        return mesh;
+      };
+
+      cube([44, 40, 24], [0, 7, 3], jacket);
+      cube([46, 8, 26], [0, 25, 4], trim);
+      cube([11, 36, 27], [-23, 6, 4], trim);
+      cube([11, 36, 27], [23, 6, 4], trim);
+      cube([18, 30, 17], [-9, -7, 3], pants);
+      cube([18, 30, 17], [9, -7, 3], pants);
+      cube([23, 8, 20], [-9, -23, 8], dark);
+      cube([23, 8, 20], [9, -23, 8], dark);
+      cube([58, 12, 36], [0, 66, 0], hat);
+      cube([36, 20, 26], [0, 77, 4], hat);
+      cube([22, 8, 27], [0, 90, 7], accent);
+
+      if (style.accessory === "fan") {
+        cube([28, 34, 4], [32, 10, 22], white, [0, 0, -0.22]);
+        cube([24, 5, 5], [32, -9, 23], accent, [0, 0, -0.22]);
+      } else if (style.accessory === "sash") {
+        cube([8, 52, 28], [-8, 8, 9], accent, [0, 0, -0.42]);
+        cube([10, 14, 30], [16, -14, 9], accent, [0, 0, -0.42]);
+      } else if (style.accessory === "drum") {
+        const drum = new THREE.Mesh(new THREE.CylinderGeometry(14, 14, 11, 12), accent);
+        drum.position.set(31, 4, 21);
+        drum.rotation.x = Math.PI / 2;
+        drum.castShadow = true;
+        group.add(drum);
+        cube([4, 30, 4], [42, 16, 21], dark, [0.4, 0, -0.35]);
+      } else if (style.accessory === "wave") {
+        cube([36, 8, 6], [0, 28, 20], accent);
+        cube([20, 8, 6], [-20, 19, 21], trim);
+        cube([20, 8, 6], [20, 19, 21], trim);
+      } else if (style.accessory === "haenyeo") {
+        cube([48, 8, 29], [0, 28, 8], accent);
+        cube([16, 10, 6], [-9, 49, 24], trim);
+        cube([16, 10, 6], [9, 49, 24], trim);
+        cube([36, 8, 7], [0, 49, 25], dark);
+        cube([12, 46, 12], [-29, 3, 5], jacket);
+        cube([12, 46, 12], [29, 3, 5], jacket);
+        cube([26, 10, 30], [-12, -30, 15], trim);
+        cube([26, 10, 30], [12, -30, 15], trim);
+        cube([22, 48, 12], [0, 18, -25], accent);
+        cube([26, 12, 16], [0, 42, -31], hat);
+        cube([7, 48, 7], [34, 4, 20], accent, [0.2, 0, -0.1]);
+        cube([18, 16, 10], [41, 25, 22], trim);
+      } else if (style.accessory === "shell") {
+        cube([15, 15, 7], [30, 12, 20], accent, [0, 0, 0.8]);
+        cube([9, 20, 6], [-27, 13, 19], white, [0, 0, -0.45]);
+      }
+
+      return group;
+    }
+
+    function equipCostume(cityKey) {
+      const costume = costumeForCity(cityKey);
+      if (!costume) return;
+      equippedCostumeKey = cityKey;
+
+      if (!player) return;
+      if (playerCostumePlane) {
+        player.remove(playerCostumePlane);
+        disposeCostumeObject(playerCostumePlane);
+        playerCostumePlane = null;
+      }
+
+      playerCostumePlane = buildCostumeMesh(costume);
+      player.add(playerCostumePlane);
+      renderInventory();
+      showToast(`${costume.label} equipped`);
+    }
+
+    function setInventoryOpen(open) {
+      inventoryOpen = open;
+      inventoryPanelEl.hidden = !open;
+      inventoryToggleEl.setAttribute("aria-expanded", open.toString());
+      if (open) renderInventory();
+    }
+
+    function saveCurrentDiaryLocation(playerPosition, city) {
+      const [lng, lat] = lonLatFromWorld(playerPosition.x, playerPosition.z);
+      const locationInfo = {
+        cityKey: city?.key || "",
+        lng,
+        lat,
+        label: city?.label || "Current location",
+        savedAt: new Date().toISOString(),
+      };
+      localStorage.setItem(CURRENT_DIARY_LOCATION_KEY, JSON.stringify(locationInfo));
+      return locationInfo;
+    }
+
+    function openDiaryApp() {
+      diaryAppOpen = true;
+      diaryAppModalEl.hidden = false;
+      diaryLaunchToggleEl.setAttribute("aria-expanded", "true");
+      setInventoryOpen(false);
+      saveCurrentDiaryLocation(player.position, activeCity);
+      if (!diaryAppFrameEl.getAttribute("src")) {
+        diaryAppFrameEl.setAttribute("src", diaryAppFrameEl.dataset.src || "./diary.html");
+      }
+    }
+
+    function closeDiaryApp() {
+      diaryAppOpen = false;
+      diaryAppModalEl.hidden = true;
+      diaryLaunchToggleEl.setAttribute("aria-expanded", "false");
+      renderDiaryMapMarkers();
+    }
+
+    function isEditableTarget(target) {
+      if (!target || !target.tagName) return false;
+      return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
+    }
+
+    function todayInputValue() {
+      const now = new Date();
+      const local = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+      return local.toISOString().slice(0, 10);
+    }
+
+    function readStoredArray(key) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function normalizeCultureDiary(entry) {
+      if (!entry) return null;
+      const id = entry.id || `diary-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      const title = String(entry.title || "문화 여행 기록").trim();
+      const place = String(entry.place || entry.location || "문화거점").trim();
+      const memo = String(entry.memo || entry.content || entry.text || "").trim();
+      return {
+        id,
+        title,
+        place,
+        date: entry.date || entry.dateISO || todayInputValue(),
+        mood: entry.mood || "느긋함",
+        tone: entry.tone || "sage",
+        texture: entry.texture || "grid",
+        frame: entry.frame || "polaroid",
+        sticker: entry.sticker || "flower",
+        memo,
+        photo: entry.photo || entry.image || "",
+        cards: Array.isArray(entry.cards) ? entry.cards : entry.sticker ? [entry.sticker] : [],
+        sourcePlaceId: entry.sourcePlaceId || "",
+        cityKey: entry.cityKey || "",
+        lng: Number.isFinite(Number(entry.lng)) ? Number(entry.lng) : null,
+        lat: Number.isFinite(Number(entry.lat)) ? Number(entry.lat) : null,
+        mapLabel: entry.mapLabel || "",
+        createdAt: entry.createdAt || new Date().toISOString(),
+        worldMapMarker: entry.worldMapMarker === true,
+      };
+    }
+
+    function loadCultureDiaries() {
+      const combined = [
+        ...readStoredArray(CULTURE_DIARY_STORAGE_KEY),
+        ...readStoredArray(SOYUN_DIARY_STORAGE_KEY),
+      ];
+      const byId = new Map();
+      combined.map(normalizeCultureDiary).filter(Boolean).forEach((entry) => byId.set(entry.id, entry));
+      return Array.from(byId.values()).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    }
+
+    function persistCultureDiaries(entries) {
+      const normalized = entries.map(normalizeCultureDiary).filter(Boolean);
+      try {
+        localStorage.setItem(CULTURE_DIARY_STORAGE_KEY, JSON.stringify(normalized));
+        localStorage.setItem(SOYUN_DIARY_STORAGE_KEY, JSON.stringify(normalized.map((entry) => ({
+          id: entry.id,
+          title: entry.title,
+          place: entry.place,
+          date: entry.date,
+          memo: entry.memo,
+          mood: entry.mood,
+          tone: entry.tone,
+          texture: entry.texture,
+          sticker: entry.sticker || entry.cards[0] || "flower",
+          frame: entry.frame,
+          photo: entry.photo,
+          cityKey: entry.cityKey,
+          lng: entry.lng,
+          lat: entry.lat,
+          mapLabel: entry.mapLabel,
+          createdAt: entry.createdAt,
+          worldMapMarker: entry.worldMapMarker === true,
+        }))));
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function normalizeCultureText(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function findCultureCityKey(value) {
+      const query = normalizeCultureText(value);
+      if (!query) return null;
+      for (const [key, [label, meta]] of Object.entries(CITY_DATA)) {
+        const keyName = key.toLowerCase();
+        const cityName = label.toLowerCase();
+        const metaName = meta.toLowerCase();
+        if (query === keyName || query === cityName || query.includes(cityName) || keyName.includes(query) || metaName.includes(query)) {
+          return key;
+        }
+      }
+      return null;
+    }
+
+    function culturePlacePosition(place) {
+      return cities[place.cityKey]?.position || project(place.lng, place.lat);
+    }
+
+    function formatDiaryMapDate(dateValue) {
+      const [year, month, day] = String(dateValue || todayInputValue()).split("-");
+      if (!year || !month || !day) return String(dateValue || "");
+      return `${Number(year)}년 ${Number(month)}월 ${Number(day)}일`;
+    }
+
+    function inferDiaryMapInfo(entry = {}, selectedPlace = null) {
+      if (selectedPlace?.cityKey && CITY_DATA[selectedPlace.cityKey]) {
+        const [, , lng, lat] = CITY_DATA[selectedPlace.cityKey];
+        return {
+          cityKey: selectedPlace.cityKey,
+          lng: selectedPlace.lng || lng,
+          lat: selectedPlace.lat || lat,
+          label: selectedPlace.city || CITY_DATA[selectedPlace.cityKey][0],
+        };
+      }
+
+      const cityKey = entry.cityKey && CITY_DATA[entry.cityKey]
+        ? entry.cityKey
+        : findCultureCityKey(`${entry.place || ""} ${entry.title || ""}`);
+      if (cityKey && CITY_DATA[cityKey]) {
+        const [label, , lng, lat] = CITY_DATA[cityKey];
+        return { cityKey, lng, lat, label };
+      }
+
+      const [lng, lat] = lonLatFromWorld(player.position.x, player.position.z);
+      return {
+        cityKey: activeCity?.key || "",
+        lng,
+        lat,
+        label: activeCity?.label || String(entry.place || "문화").replace(/\s+/g, "").slice(0, 6) || "문화",
+      };
+    }
+
+    function diaryMapTitle(entry) {
+      const label = entry.mapLabel || inferDiaryMapInfo(entry).label || "문화";
+      return `${formatDiaryMapDate(entry.date)} ${String(label).replace(/여행$/, "")}여행`;
+    }
+
+    function diaryMapPosition(entry) {
+      if (entry.cityKey && cities[entry.cityKey]) return cities[entry.cityKey].position.clone();
+      if (Number.isFinite(Number(entry.lng)) && Number.isFinite(Number(entry.lat))) return project(Number(entry.lng), Number(entry.lat));
+      const info = inferDiaryMapInfo(entry);
+      return project(info.lng, info.lat);
+    }
+
+    function diaryMarkerOffsetPosition(entry, index) {
+      const position = diaryMapPosition(entry);
+      const cityKey = entry.cityKey || inferDiaryMapInfo(entry).cityKey || "";
+      const seed = Array.from(`${cityKey}:${entry.id || index}`).reduce((sum, char) => sum + char.charCodeAt(0), 0);
+      const angle = (seed % 360) * Math.PI / 180;
+      const ring = index % 3;
+      const distance = 118 + ring * 34;
+      position.x += Math.cos(angle) * distance;
+      position.z += Math.sin(angle) * distance;
+      return position;
+    }
+
+    function scoreCulturePlace(place, startKey, endKey, tokens) {
+      const pos = culturePlacePosition(place);
+      const start = startKey ? cities[startKey] : null;
+      const end = endKey ? cities[endKey] : null;
+      let routeDistance = 0;
+      if (start && end) {
+        routeDistance = distanceToSegment2D(pos.x, pos.z, start.position, end.position);
+      } else if (start || end) {
+        routeDistance = pos.distanceTo((start || end).position);
+      } else if (activeCity) {
+        routeDistance = pos.distanceTo(activeCity.position);
+      } else {
+        routeDistance = pos.distanceTo(player.position);
+      }
+
+      const text = normalizeCultureText(`${place.city} ${place.name} ${place.category} ${place.title} ${place.description} ${place.tags.join(" ")}`);
+      const keywordScore = tokens.reduce((sum, token) => sum + (text.includes(token) ? 1100 : 0), 0);
+      const endpointScore = [startKey, endKey].includes(place.cityKey) ? 620 : 0;
+      const nearbyScore = activeCity?.key === place.cityKey ? 180 : 0;
+      return {
+        place,
+        routeDistance,
+        score: keywordScore + endpointScore + nearbyScore - routeDistance * 0.42 + place.tags.length * 16,
+      };
+    }
+
+    function getCultureRecommendations() {
+      const startKey = findCultureCityKey(cultureStartInputEl.value);
+      const endKey = findCultureCityKey(cultureEndInputEl.value);
+      const tokens = normalizeCultureText(cultureKeywordInputEl.value)
+        .split(/[\s,]+/)
+        .filter(Boolean);
+      return HIDDEN_CULTURE_PLACES
+        .map((place) => scoreCulturePlace(place, startKey, endKey, tokens))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 6);
+    }
+
+    function createCultureTags(tags) {
+      const wrap = document.createElement("div");
+      wrap.className = "culture-tags";
+      tags.forEach((tag) => {
+        const chip = document.createElement("span");
+        chip.className = "culture-tag";
+        chip.textContent = tag;
+        wrap.append(chip);
+      });
+      return wrap;
+    }
+
+    function cultureSvgPoint(lon, lat) {
+      const width = 760;
+      const height = 860;
+      const padX = 72;
+      const padY = 58;
+      return {
+        x: padX + ((lon - MIN_LON) / (MAX_LON - MIN_LON)) * (width - padX * 2),
+        y: padY + ((MAX_LAT - lat) / (MAX_LAT - MIN_LAT)) * (height - padY * 2),
+      };
+    }
+
+    function culturePathFromLonLat(points) {
+      return points
+        .map(([lon, lat], index) => {
+          const point = cultureSvgPoint(lon, lat);
+          return `${index ? "L" : "M"} ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
+        })
+        .join(" ") + " Z";
+    }
+
+    function svgNode(name, attributes = {}) {
+      const node = document.createElementNS("http://www.w3.org/2000/svg", name);
+      Object.entries(attributes).forEach(([key, value]) => node.setAttribute(key, value));
+      return node;
+    }
+
+    function setupCulture2DMap() {
+      if (cultureMapBaseReady) return;
+      culture2dLandShapeEl.setAttribute("d", culturePathFromLonLat(MAINLAND_LL));
+      culture2dIslandLayerEl.textContent = "";
+      ISLANDS.forEach((island) => {
+        const point = cultureSvgPoint(island.lon, island.lat);
+        const ellipse = svgNode("ellipse", {
+          class: "map-island",
+          cx: point.x.toFixed(1),
+          cy: point.y.toFixed(1),
+          rx: island.key === "JejuIsland" ? "58" : island.key === "Ulleungdo" ? "10" : "4",
+          ry: island.key === "JejuIsland" ? "26" : island.key === "Ulleungdo" ? "8" : "3",
+          transform: `rotate(${island.angle} ${point.x.toFixed(1)} ${point.y.toFixed(1)})`,
+        });
+        culture2dIslandLayerEl.append(ellipse);
+      });
+
+      culture2dCityLayerEl.textContent = "";
+      Object.entries(CITY_DATA).forEach(([key, [label, , lon, lat]]) => {
+        const point = cultureSvgPoint(lon, lat);
+        const group = svgNode("g", { "data-city-key": key });
+        group.append(svgNode("circle", {
+          class: "map-city-dot",
+          cx: point.x.toFixed(1),
+          cy: point.y.toFixed(1),
+          r: "7",
+        }));
+        const text = svgNode("text", {
+          class: "map-city-label",
+          x: (point.x + 10).toFixed(1),
+          y: (point.y - 10).toFixed(1),
+        });
+        text.textContent = label;
+        group.append(text);
+        culture2dCityLayerEl.append(group);
+      });
+      cultureMapBaseReady = true;
+    }
+
+    function makeCultureMarker(point, label, variant, place = null) {
+      const group = svgNode("g", {
+        class: `map-route-marker ${variant}`,
+        transform: `translate(${point.x.toFixed(1)} ${point.y.toFixed(1)})`,
+        tabindex: place ? "0" : "-1",
+        role: place ? "button" : "img",
+      });
+      group.append(svgNode("circle", { r: variant === "place" ? "18" : "22" }));
+      const text = svgNode("text");
+      text.textContent = label;
+      group.append(text);
+      if (place) {
+        group.addEventListener("click", () => fillCultureDiary(place));
+        group.addEventListener("keydown", (event) => {
+          if (event.code === "Enter" || event.code === "Space") {
+            event.preventDefault();
+            fillCultureDiary(place);
+          }
+        });
+      }
+      return group;
+    }
+
+    function renderCulture2DMap(results, startKey, endKey) {
+      setupCulture2DMap();
+      culture2dMarkerLayerEl.textContent = "";
+      const routePoints = [];
+      if (startKey && CITY_DATA[startKey]) {
+        const [, , lon, lat] = CITY_DATA[startKey];
+        const point = cultureSvgPoint(lon, lat);
+        routePoints.push(point);
+        culture2dMarkerLayerEl.append(makeCultureMarker(point, "S", "start"));
+      }
+
+      results.slice(0, 4).forEach(({ place }, index) => {
+        const point = cultureSvgPoint(place.lng, place.lat);
+        routePoints.push(point);
+        culture2dMarkerLayerEl.append(makeCultureMarker(point, String(index + 1), "place", place));
+      });
+
+      if (endKey && CITY_DATA[endKey]) {
+        const [, , lon, lat] = CITY_DATA[endKey];
+        const point = cultureSvgPoint(lon, lat);
+        routePoints.push(point);
+        culture2dMarkerLayerEl.append(makeCultureMarker(point, "E", "end"));
+      }
+
+      culture2dRouteLineEl.setAttribute(
+        "points",
+        routePoints.map((point) => `${point.x.toFixed(1)},${point.y.toFixed(1)}`).join(" ")
+      );
+    }
+
+    function renderCultureDiaryPreview() {
+      const preview = normalizeCultureDiary({
+        title: cultureDiaryTitleInputEl.value || "local diary",
+        place: cultureDiaryPlaceInputEl.value || "문화거점",
+        date: cultureDiaryDateInputEl.value || todayInputValue(),
+        mood: cultureDiaryMoodInputEl.value,
+        tone: cultureDiaryToneInputEl.value,
+        texture: cultureDiaryTextureInputEl.value,
+        frame: cultureDiaryFrameInputEl.value,
+        memo: cultureDiaryMemoInputEl.value || "지도에서 고른 장소가 이곳에 다이어리 카드로 기록됩니다.",
+        photo: cultureDiaryPhoto,
+        cards: cultureSelectedPlace?.tags || [],
+      });
+      cultureDiaryPreviewEl.textContent = "";
+      cultureDiaryPreviewEl.append(buildCultureDiarySpread(preview));
+    }
+
+    function buildCultureDiarySpread(entry, compact = false) {
+      const spread = document.createElement("article");
+      spread.className = `diary-spread diary-spread--${entry.tone} diary-texture--${entry.texture}`;
+      if (compact) spread.dataset.compact = "true";
+
+      const left = document.createElement("section");
+      left.className = "diary-page diary-page--left";
+      const label = document.createElement("p");
+      label.className = "hand-label";
+      label.textContent = compact ? "DAY NOTE" : "PREVIEW";
+      const title = document.createElement("h3");
+      title.textContent = entry.title;
+      const memo = document.createElement("p");
+      memo.className = "diary-line";
+      memo.textContent = entry.memo;
+      const photoFrame = document.createElement("div");
+      photoFrame.className = `photo-frame photo-frame--${entry.frame}`;
+      if (entry.photo) {
+        const img = document.createElement("img");
+        img.src = entry.photo;
+        img.alt = `${entry.title} 사진`;
+        photoFrame.append(img);
+      } else {
+        const placeholder = document.createElement("div");
+        placeholder.className = "sample-photo";
+        placeholder.textContent = "photo";
+        photoFrame.append(placeholder);
+      }
+      left.append(label, title, memo, photoFrame);
+
+      const right = document.createElement("section");
+      right.className = "diary-page diary-page--right";
+      const pass = document.createElement("div");
+      pass.className = "boarding-pass";
+      const passLabel = document.createElement("span");
+      passLabel.textContent = "LOCAL PASS";
+      const place = document.createElement("strong");
+      place.textContent = entry.place;
+      const date = document.createElement("small");
+      date.textContent = `${entry.date} · ${entry.mood}`;
+      pass.append(passLabel, place, date);
+      const note = document.createElement("p");
+      note.className = "diary-line";
+      note.textContent = entry.cards.length ? `문화카드: ${entry.cards.join(", ")}` : "지도에서 고른 장소를 기록하고 피드처럼 쌓아둘 수 있어요.";
+      right.append(pass, note);
+      spread.append(left, right);
+      return spread;
+    }
+
+    function switchCultureView(view) {
+      const diary = view === "diary";
+      cultureMapViewEl.hidden = diary;
+      cultureDiaryViewEl.hidden = !diary;
+      cultureMapTabEl.classList.toggle("is-active", !diary);
+      cultureDiaryTabEl.classList.toggle("is-active", diary);
+      if (diary) {
+        cultureDiaryDateInputEl.value ||= todayInputValue();
+        renderCultureDiaryPreview();
+        renderCultureDiaries();
+      } else {
+        renderCultureRecommendations();
+      }
+    }
+
+    function renderCultureRecommendations() {
+      const startKey = findCultureCityKey(cultureStartInputEl.value);
+      const endKey = findCultureCityKey(cultureEndInputEl.value);
+      const results = getCultureRecommendations();
+      cultureLastResults = results.map((result) => result.place);
+      cultureRecommendationListEl.textContent = "";
+
+      const startLabel = startKey ? CITY_DATA[startKey][0] : activeCity?.label || "현재 위치";
+      const endLabel = endKey ? CITY_DATA[endKey][0] : "주변";
+      const usedTime = results.slice(0, 4).reduce((sum, result) => sum + result.place.stayMinutes, 0);
+      cultureCandidateCountEl.textContent = results.length.toString();
+      cultureSelectedCountEl.textContent = Math.min(4, results.length).toString();
+      cultureUsedTimeEl.textContent = `${usedTime}분`;
+      cultureRouteStatusEl.textContent = `${startLabel} → ${endLabel} 추천 ${results.length}곳 · 지도 위 번호를 누르면 다이어리로 이동합니다.`;
+      renderCulture2DMap(results, startKey, endKey);
+
+      if (!results.length) {
+        const empty = document.createElement("div");
+        empty.className = "culture-empty";
+        empty.textContent = "추천할 문화거점이 아직 없습니다.";
+        cultureRecommendationListEl.append(empty);
+        return;
+      }
+
+      results.forEach(({ place, routeDistance }, index) => {
+        const card = document.createElement("article");
+        card.className = "recommendation-card";
+
+        const rank = document.createElement("div");
+        rank.className = "route-rank";
+        rank.textContent = String(index + 1);
+
+        const titleBlock = document.createElement("div");
+        const title = document.createElement("p");
+        title.className = "recommendation-title";
+        title.textContent = place.name;
+        const meta = document.createElement("p");
+        meta.className = "recommendation-meta";
+        meta.textContent = `${place.city} · ${place.category} · 약 ${place.stayMinutes}분`;
+        const desc = document.createElement("p");
+        desc.className = "recommendation-desc";
+        desc.textContent = place.description;
+        titleBlock.append(title, meta, desc, createCultureTags(place.tags));
+
+        const score = document.createElement("div");
+        score.className = "hidden-score";
+        const scoreNumber = document.createElement("strong");
+        scoreNumber.textContent = Math.max(1, 99 - Math.round(routeDistance / 42)).toString();
+        const scoreLabel = document.createElement("span");
+        scoreLabel.textContent = "보물도";
+        score.append(scoreNumber, scoreLabel);
+
+        const action = document.createElement("button");
+        action.className = "recommendation-action";
+        action.type = "button";
+        action.dataset.routeIndex = index.toString();
+        action.textContent = "다이어리 쓰기";
+
+        card.append(rank, titleBlock, score, action);
+        cultureRecommendationListEl.append(card);
+      });
+    }
+
+    function fillCultureDiary(place) {
+      cultureSelectedPlace = place;
+      cultureDiaryTitleInputEl.value = `${place.city} ${place.title}`;
+      cultureDiaryPlaceInputEl.value = place.name;
+      cultureDiaryDateInputEl.value ||= todayInputValue();
+      cultureDiaryMoodInputEl.value = "설렘";
+      cultureDiaryToneInputEl.value = place.cityKey === "Busan" || place.cityKey === "Pohang" || place.cityKey === "Yeosu" ? "sky" : "sage";
+      cultureDiaryTextureInputEl.value = "grid";
+      cultureDiaryFrameInputEl.value = "polaroid";
+      cultureDiaryMemoInputEl.value = `${place.description}\n해금 문화카드: ${place.tags.join(", ")}`;
+      cultureDiaryStatusEl.textContent = `${place.city} 추천지를 다이어리에 담았습니다.`;
+      switchCultureView("diary");
+      renderCultureDiaryPreview();
+      cultureDiaryTitleInputEl.focus();
+    }
+
+    function renderCultureDiaries() {
+      const diaries = loadCultureDiaries();
+      cultureDiaryListEl.textContent = "";
+
+      if (!diaries.length) {
+        const empty = document.createElement("div");
+        empty.className = "culture-empty";
+        empty.textContent = "저장된 다이어리가 없습니다.";
+        cultureDiaryListEl.append(empty);
+        return;
+      }
+
+      diaries.forEach((entry) => {
+        const card = document.createElement("article");
+        card.className = "diary-card";
+        const tools = document.createElement("div");
+        tools.className = "diary-card-tools";
+        const del = document.createElement("button");
+        del.className = "diary-delete";
+        del.type = "button";
+        del.dataset.diaryId = entry.id;
+        del.textContent = "삭제";
+        tools.append(del);
+        card.append(tools, buildCultureDiarySpread(entry, true));
+        cultureDiaryListEl.append(card);
+      });
+    }
+
+    function makeDiaryMarker(entry, index) {
+      const group = new THREE.Group();
+      const pos = diaryMarkerOffsetPosition(entry, index);
+      const lift = 0;
+      group.position.set(pos.x, LAND_Y + 3, pos.z);
+      group.userData.diaryId = entry.id;
+      group.userData.entry = entry;
+      group.userData.labelLift = 118;
+
+      const stone = new THREE.MeshStandardMaterial({ color: 0x8f8a82, roughness: 0.92, flatShading: true });
+      const stoneDark = new THREE.MeshStandardMaterial({ color: 0x5f5b54, roughness: 0.95, flatShading: true });
+      const ink = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.9, flatShading: true });
+      const blush = new THREE.MeshStandardMaterial({ color: 0xffb3c3, roughness: 0.82, flatShading: true });
+      const gold = new THREE.MeshStandardMaterial({ color: 0xf4b447, roughness: 0.72, flatShading: true });
+
+      const cube = (size, position, material) => {
+        const mesh = new THREE.Mesh(new THREE.BoxGeometry(size[0], size[1], size[2]), material);
+        mesh.position.set(position[0], position[1] + lift, position[2]);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.userData.diaryId = entry.id;
+        group.add(mesh);
+        return mesh;
+      };
+
+      cube([46, 18, 34], [0, 9, 0], stoneDark);
+      cube([58, 56, 36], [0, 44, 0], stone);
+      cube([70, 24, 46], [0, 84, 0], stone);
+      cube([62, 18, 42], [0, 106, 0], stoneDark);
+      cube([54, 24, 38], [0, 124, 0], stone);
+      cube([36, 16, 30], [0, 144, 0], stone);
+      cube([18, 34, 18], [-38, 78, 0], stoneDark);
+      cube([18, 34, 18], [38, 78, 0], stoneDark);
+      cube([14, 20, 8], [0, 88, 23], stoneDark);
+      cube([9, 8, 5], [-15, 92, 25], ink);
+      cube([9, 8, 5], [15, 92, 25], ink);
+      cube([10, 8, 5], [-25, 76, 24], blush);
+      cube([10, 8, 5], [25, 76, 24], blush);
+      cube([25, 8, 8], [-17, 48, 23], stoneDark);
+      cube([25, 8, 8], [17, 48, 23], stoneDark);
+      cube([22, 8, 7], [0, 66, 25], ink);
+      cube([11, 11, 8], [-70, 138, 0], gold);
+      cube([11, 11, 8], [70, 116, 0], gold);
+      cube([11, 11, 8], [-58, 30, 0], gold);
+
+      const label = document.createElement("button");
+      label.className = "diary-map-label";
+      label.type = "button";
+      label.textContent = diaryMapTitle(entry);
+      label.addEventListener("click", () => openDiaryMapEntry(entry.id));
+      labelLayer.append(label);
+      group.userData.labelEl = label;
+      diaryMarkerGroup.add(group);
+      return group;
+    }
+
+    function renderDiaryMapMarkers() {
+      for (const marker of diaryMarkerGroup.children) {
+        marker.userData.labelEl?.remove();
+      }
+      diaryMarkerGroup.clear();
+      loadCultureDiaries().filter((entry) => entry.worldMapMarker).forEach(makeDiaryMarker);
+    }
+
+    function updateDiaryMapLabels() {
+      for (const marker of diaryMarkerGroup.children) {
+        const label = marker.userData.labelEl;
+        if (!label) continue;
+        const point = marker.position.clone();
+        point.y += marker.userData.labelLift || 104;
+        point.project(camera);
+        const visible = point.z > -1 && point.z < 1;
+        const x = (point.x * 0.5 + 0.5) * innerWidth;
+        const y = (-point.y * 0.5 + 0.5) * innerHeight;
+        const nearby = marker.position.distanceTo(player.position) < 1450;
+        label.style.left = `${x}px`;
+        label.style.top = `${y}px`;
+        label.classList.toggle("hidden", !nearby || !visible || y < 0 || y > innerHeight || x < 0 || x > innerWidth);
+      }
+    }
+
+    function openDiaryMapEntry(id) {
+      const entry = loadCultureDiaries().find((item) => item.id === id);
+      if (!entry) return;
+      interactionOpen = true;
+      diaryMapTitleEl.textContent = diaryMapTitle(entry);
+      diaryMapBodyEl.textContent = "";
+      diaryMapBodyEl.append(buildCultureDiarySpread(entry, true));
+      diaryMapModalEl.hidden = false;
+    }
+
+    function closeDiaryMapEntry() {
+      diaryMapModalEl.hidden = true;
+      interactionOpen = false;
+      diaryMapBodyEl.textContent = "";
+    }
+
+    function saveCultureDiary(event) {
+      event.preventDefault();
+      const place = cultureSelectedPlace;
+      const mapInfo = inferDiaryMapInfo({
+        title: cultureDiaryTitleInputEl.value.trim(),
+        place: cultureDiaryPlaceInputEl.value.trim(),
+      }, place);
+      const entry = {
+        id: `diary-${Date.now()}`,
+        title: cultureDiaryTitleInputEl.value.trim(),
+        place: cultureDiaryPlaceInputEl.value.trim(),
+        date: cultureDiaryDateInputEl.value || todayInputValue(),
+        mood: cultureDiaryMoodInputEl.value,
+        tone: cultureDiaryToneInputEl.value,
+        texture: cultureDiaryTextureInputEl.value,
+        frame: cultureDiaryFrameInputEl.value,
+        sticker: cultureSelectedPlace?.tags?.[0] || "flower",
+        memo: cultureDiaryMemoInputEl.value.trim(),
+        photo: cultureDiaryPhoto,
+        cards: place?.tags || [],
+        sourcePlaceId: place?.id || "",
+        cityKey: mapInfo.cityKey,
+        lng: mapInfo.lng,
+        lat: mapInfo.lat,
+        mapLabel: mapInfo.label,
+        createdAt: new Date().toISOString(),
+        worldMapMarker: true,
+      };
+
+      const saved = persistCultureDiaries([entry, ...loadCultureDiaries()]);
+      if (!saved) {
+        cultureDiaryStatusEl.textContent = "브라우저 저장공간이 부족합니다.";
+        return;
+      }
+
+      cultureDiaryFormEl.reset();
+      cultureDiaryDateInputEl.value = todayInputValue();
+      cultureDiaryToneInputEl.value = "sage";
+      cultureDiaryTextureInputEl.value = "grid";
+      cultureDiaryFrameInputEl.value = "polaroid";
+      cultureSelectedPlace = null;
+      cultureDiaryPhoto = "";
+      cultureDiaryStatusEl.textContent = "다이어리를 저장했습니다.";
+      renderCultureDiaryPreview();
+      renderCultureDiaries();
+      renderDiaryMapMarkers();
+      showToast("Diary landmark built");
+    }
+
+    function deleteCultureDiary(id) {
+      const next = loadCultureDiaries().filter((entry) => entry.id !== id);
+      persistCultureDiaries(next);
+      renderCultureDiaries();
+      renderDiaryMapMarkers();
+      cultureDiaryStatusEl.textContent = "다이어리를 삭제했습니다.";
+    }
+
+    function resetCultureDiaryForm() {
+      cultureDiaryFormEl.reset();
+      cultureDiaryDateInputEl.value = todayInputValue();
+      cultureDiaryToneInputEl.value = "sage";
+      cultureDiaryTextureInputEl.value = "grid";
+      cultureDiaryFrameInputEl.value = "polaroid";
+      cultureSelectedPlace = null;
+      cultureDiaryPhoto = "";
+      cultureDiaryStatusEl.textContent = "새 다이어리를 입력할 수 있습니다.";
+      renderCultureDiaryPreview();
+    }
+
+    function readCulturePhoto(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.addEventListener("load", () => resolve(reader.result || ""));
+        reader.addEventListener("error", reject);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    async function handleCulturePhotoChange() {
+      const file = cultureDiaryPhotoInputEl.files?.[0];
+      cultureDiaryPhoto = "";
+      if (!file) return;
+      if (!file.type.startsWith("image/")) {
+        cultureDiaryStatusEl.textContent = "이미지 파일만 사용할 수 있습니다.";
+        cultureDiaryPhotoInputEl.value = "";
+        return;
+      }
+      if (file.size > 700000) {
+        cultureDiaryStatusEl.textContent = "사진은 700KB 이하로 넣어주세요.";
+        cultureDiaryPhotoInputEl.value = "";
+        return;
+      }
+      cultureDiaryPhoto = await readCulturePhoto(file);
+      cultureDiaryStatusEl.textContent = "사진을 불러왔습니다.";
+      renderCultureDiaryPreview();
+    }
+
+    function openCultureRoutePanel() {
+      cultureRouteOpen = true;
+      interactionOpen = true;
+      cultureRouteModalEl.hidden = false;
+      cultureRouteToggleEl.setAttribute("aria-expanded", "true");
+      setInventoryOpen(false);
+      if (activeCity) cultureStartInputEl.value = activeCity.label;
+      if (!cultureEndInputEl.value.trim() || cultureEndInputEl.value.trim() === cultureStartInputEl.value.trim()) {
+        cultureEndInputEl.value = activeCity?.key === "Busan" ? "서울" : "부산";
+      }
+      cultureDiaryDateInputEl.value ||= todayInputValue();
+      switchCultureView("map");
+      cultureStartInputEl.focus();
+    }
+
+    function closeCultureRoutePanel() {
+      cultureRouteOpen = false;
+      cultureRouteModalEl.hidden = true;
+      cultureRouteToggleEl.setAttribute("aria-expanded", "false");
+      if (locationModal.hidden && !activeGameCity) interactionOpen = false;
+    }
+
+    function rewardForCard(card, game) {
+      return {
+        item: card,
+        kind: game.material,
+        mark: card.slice(0, 1),
+        mission: game.title,
+      };
+    }
+
+    function completeMission(city) {
+      if (!city) return;
+      const game = REGION_GAMES[city.key];
+      const reward = REGION_REWARDS[city.key];
+      if (!game && !reward) {
+        modalResultEl.textContent = "이 지역의 보상이 아직 준비되지 않았습니다.";
+        return;
+      }
+      if (completedQuests.has(city.key)) {
+        const itemName = game ? game.cards.join(", ") : reward.item;
+        modalResultEl.textContent = `${itemName}은 이미 인벤토리에 있습니다.`;
+        setInventoryOpen(true);
+        return;
+      }
+
+      completedQuests.add(city.key);
+      if (game) {
+        game.cards.forEach((card) => {
+          inventory.set(`${city.key}:${card}`, { city, reward: rewardForCard(card, game) });
+        });
+        addCostumeReward(city);
+      } else {
+        inventory.set(city.key, { city, reward });
+      }
+      markVisited(city);
+      renderInventory();
+      closeLocationPopup();
+      closeMiniGame();
+      setInventoryOpen(true);
+      notifyCultureRewardCleared(city, reward);
+      showToast(`${city.label} 미션 성공 · 문화카드 해금`);
+      updateCityState();
+    }
+
+    function openMiniGame(city) {
+      const game = REGION_GAMES[city.key];
+      if (!game || !window.KoreaCultureMinigames?.create) {
+        completeMission(city);
+        return;
+      }
+      activeGameCity = city;
+      closeLocationPopup();
+      interactionOpen = true;
+      gameModalEl.hidden = false;
+      gameModalEl.textContent = "";
+
+      minigameInstance = window.KoreaCultureMinigames.create({
+        window,
+        document,
+        container: gameModalEl,
+        games: REGION_GAMES,
+        onComplete: (payload) => {
+          if (!activeGameCity || payload.regionKey !== activeGameCity.key) return;
+          completeMission(activeGameCity);
+        },
+        onClose: closeMiniGame,
+      });
+      minigameInstance.start(city.key);
+    }
+
+    function closeMiniGame() {
+      const hadGame = Boolean(activeGameCity);
+      activeGameCity = null;
+      if (minigameInstance) {
+        const instance = minigameInstance;
+        minigameInstance = null;
+        instance.destroy();
+      }
+      gameModalEl.textContent = "";
+      gameModalEl.hidden = true;
+      if (!hadGame || !locationModal.hidden) return;
+      interactionOpen = false;
+    }
+
+    function markVisited(city) {
+      if (!city || visited.has(city.key)) return false;
+      visited.add(city.key);
+      city.node.material.color.set(COLORS.visited);
+      visitedCountEl.textContent = `${visited.size}/${Object.keys(cities).length}`;
+      return true;
+    }
+
+    function openLocationPopup(city) {
+      if (!city) return;
+      popupCity = city;
+      interactionOpen = true;
+      modalCityNameEl.textContent = city.label;
+      const game = REGION_GAMES[city.key];
+      const reward = REGION_REWARDS[city.key];
+      const completed = completedQuests.has(city.key);
+      modalDescriptionEl.textContent = reward
+        ? game
+          ? `${city.meta} · ${game.material} · ${game.title}: ${gamePrompt(game)}`
+          : `${city.meta} · 미션: ${reward.mission}`
+        : `${city.meta}에서 지역 활동을 선택할 수 있습니다.`;
+      modalResultEl.textContent = completed
+        ? game ? `${game.cards.join(", ")} 문화카드를 이미 획득했습니다.` : `${reward.item}을 이미 획득했습니다.`
+        : visited.has(city.key) ? "방문 기록이 남아 있습니다." : "";
+      visitActionEl.disabled = visited.has(city.key);
+      questActionEl.disabled = completed;
+      questActionEl.textContent = completed ? "미션 완료" : game ? "미니게임 시작" : "지역 미션 성공";
+      locationModal.hidden = false;
+    }
+
+    function closeLocationPopup() {
+      interactionOpen = false;
+      popupCity = null;
+      locationModal.hidden = true;
+    }
+
+    visitActionEl.addEventListener("click", () => {
+      if (!popupCity) return;
+      if (markVisited(popupCity)) {
+        modalResultEl.textContent = `${popupCity.label} 방문이 기록되었습니다.`;
+        visitActionEl.disabled = true;
+        showToast(`${popupCity.label} 방문 기록`);
+      }
+      updateCityState();
+    });
+
+    questActionEl.addEventListener("click", () => {
+      if (!popupCity) return;
+      openMiniGame(popupCity);
+    });
+
+    inventoryToggleEl.addEventListener("click", () => setInventoryOpen(!inventoryOpen));
+    inventoryCloseEl.addEventListener("click", () => setInventoryOpen(false));
+    diaryLaunchToggleEl.addEventListener("click", openDiaryApp);
+    diaryAppCloseEl.addEventListener("click", closeDiaryApp);
+    diaryAppModalEl.addEventListener("click", (event) => {
+      if (event.target === diaryAppModalEl) closeDiaryApp();
+    });
+    cultureRouteToggleEl?.addEventListener("click", openCultureRoutePanel);
+    cultureRouteCloseEl?.addEventListener("click", closeCultureRoutePanel);
+    cultureMapTabEl?.addEventListener("click", () => switchCultureView("map"));
+    cultureDiaryTabEl?.addEventListener("click", () => switchCultureView("diary"));
+    cultureRouteFormEl?.addEventListener("submit", (event) => {
+      event.preventDefault();
+      renderCultureRecommendations();
+    });
+    cultureRecommendationListEl?.addEventListener("click", (event) => {
+      const action = event.target.closest("[data-route-index]");
+      if (!action) return;
+      const place = cultureLastResults[Number(action.dataset.routeIndex)];
+      if (place) fillCultureDiary(place);
+    });
+    cultureDiaryFormEl?.addEventListener("submit", saveCultureDiary);
+    cultureDiaryPhotoInputEl?.addEventListener("change", handleCulturePhotoChange);
+    cultureDiaryBackToMapEl?.addEventListener("click", () => switchCultureView("map"));
+    cultureDiaryResetEl?.addEventListener("click", resetCultureDiaryForm);
+    [
+      cultureDiaryTitleInputEl,
+      cultureDiaryPlaceInputEl,
+      cultureDiaryDateInputEl,
+      cultureDiaryMoodInputEl,
+      cultureDiaryToneInputEl,
+      cultureDiaryTextureInputEl,
+      cultureDiaryFrameInputEl,
+      cultureDiaryMemoInputEl,
+    ].filter(Boolean).forEach((input) => input.addEventListener("input", renderCultureDiaryPreview));
+    cultureDiaryListEl?.addEventListener("click", (event) => {
+      const action = event.target.closest("[data-diary-id]");
+      if (action) deleteCultureDiary(action.dataset.diaryId);
+    });
+    diaryMapCloseEl.addEventListener("click", closeDiaryMapEntry);
+    diaryMapModalEl.addEventListener("click", (event) => {
+      if (event.target === diaryMapModalEl) closeDiaryMapEntry();
+    });
+    cultureRouteModalEl?.addEventListener("click", (event) => {
+      if (event.target === cultureRouteModalEl) closeCultureRoutePanel();
+    });
+
+    // 토끼 NPC 초기화
+    initRabbits();
+
+    modalCloseEl.addEventListener("click", closeLocationPopup);
+    locationModal.addEventListener("click", (event) => {
+      if (event.target === locationModal) closeLocationPopup();
+    });
+
+    if (!koreaTerrain) {
+      makeLandMesh(shapeFromLonLat(MAINLAND_LL), COLORS.land, COLORS.landEdge);
+      for (const island of ISLANDS) {
+        makeLandMesh(islandShape(island), COLORS.landIsland, COLORS.landEdge);
+      }
+      for (const patch of LAND_REINFORCEMENTS) {
+        makeFlatLandPatch(patch);
+      }
+      for (const islet of COAST_ISLETS) {
+        makeLandMesh(islandShape(islet, 26), COLORS.landIslet, COLORS.landEdge);
+      }
+    }
+    if (SHOW_MOUNTAINS) {
+      TERRAIN_PATCHES.forEach(makeTerrainPatch);
+      REGION_LINES.forEach((line) => addRaisedPath(line, { color: COLORS.regionLine, radius: 2.4, y: LAND_Y + 19, opacity: 0.42 }));
+      RIDGE_LINES.forEach((line) => addRaisedPath(line, { color: 0xdadad4, radius: 7.5, y: LAND_Y + 22, opacity: 1 }));
+      MOUNTAIN_RANGES.forEach(addMountainRange);
+    }
+    addCherryGroves();
+    addCamelliaGrove();
+
+    Object.entries(CITY_DATA).forEach(([key, [label, meta, lon, lat]]) => addCity(key, label, meta, lon, lat));
+    addHelloJejuSign();
+    ROADS.forEach(([a, b]) => addRoad(a, b, false));
+
+    const player = buildPlayer();
+    player.scale.setScalar(0.62);
+    const startCityKey = new URLSearchParams(location.search).get("start");
+    player.position.copy(landingPosition(cities[startCityKey] || cities.Gwangju));
+    scene.add(player);
+
+    // 바나나보트 생성
+    const bananaBoat = buildBananaBoat();
+    bananaBoat.scale.setScalar(0.75); // 더 크게 조정
+    bananaBoat.visible = false; // 처음에는 숨김
+    scene.add(bananaBoat);
+
+    const playerVelocity = new THREE.Vector3();
+    const pointer = new THREE.Vector2();
+    const raycaster = new THREE.Raycaster();
+    const clickPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -PLAYER_Y);
+    const clickPoint = new THREE.Vector3();
+    let walkTarget = null;
+    const cameraTarget = new THREE.Vector3();
+    const cameraGoal = new THREE.Vector3();
+    let activeCity = cities.Gwangju;
+
+    // 점프 관련 변수
+    let isJumping = false;
+    let jumpVelocity = 0;
+    const JUMP_FORCE = 320; // 점프 힘
+    const GRAVITY = 800; // 중력
+    let jumpCooldown = 0;
+
+    // T 키 점프 이벤트 리스너
+    window.addEventListener("keydown", (event) => {
+      if (event.code === "KeyT" && !isJumping && jumpCooldown <= 0) {
+        isJumping = true;
+        jumpVelocity = JUMP_FORCE;
+        jumpCooldown = 0.2; // 연속 점프 방지
+      }
+    });
+
+    snapCameraToPlayer();
+
+    const grid = new THREE.GridHelper(14000, 72, 0xd1d1ca, 0xc4c5bf);
+    grid.position.y = 0.1;
+    grid.material.transparent = true;
+    grid.material.opacity = 0.28;
+    scene.add(grid);
+
+    for (let i = 0; i < 42; i += 1) {
+      const cloud = new THREE.Mesh(
+        new THREE.SphereGeometry(10 + Math.random() * 16, 12, 8),
+        new THREE.MeshStandardMaterial({ color: 0xe9f4ef, roughness: 1, transparent: true, opacity: 0.16 })
+      );
+      cloud.scale.set(1 + Math.random() * 2.5, 0.18, 0.55 + Math.random());
+      cloud.position.set((Math.random() - 0.5) * 9800, 160 + Math.random() * 160, (Math.random() - 0.5) * 9000);
+      scene.add(cloud);
+    }
+
+    function cameraSettings() {
+      return {
+        lift: innerWidth < 760 ? 250 : 230,
+        back: innerWidth < 760 ? 320 : 290,
+      };
+    }
+
+    function snapCameraToPlayer() {
+      const { lift, back } = cameraSettings();
+      cameraTarget.copy(player.position);
+      cameraTarget.y = LAND_Y;
+      camera.position.set(player.position.x, lift, player.position.z + back);
+      camera.lookAt(cameraTarget.x, cameraTarget.y + 26, cameraTarget.z);
+    }
+
+    function updateCityState() {
+      activeCity = closestCity(player.position);
+      const target = ferryTarget(player.position);
+      if (activeCity) {
+        currentCityEl.textContent = activeCity.label;
+        cityNameEl.textContent = activeCity.label;
+        cityMetaEl.textContent = visited.has(activeCity.key) ? `${activeCity.meta} · 기록 완료` : `${activeCity.meta} · 지역 활동 가능`;
+      } else if (target) {
+        currentCityEl.textContent = "항구";
+        cityNameEl.textContent = `${target.label}행 페리`;
+        cityMetaEl.textContent = "항구 근처에서 바닷길이 열립니다";
+      } else {
+        currentCityEl.textContent = "이동 중";
+        cityNameEl.textContent = "이동 중";
+        cityMetaEl.textContent = "가까운 도시를 향해 이동";
+      }
+      visitedCountEl.textContent = `${visited.size}/${Object.keys(cities).length}`;
+    }
+
+    function updateLabels() {
+      for (const city of Object.values(cities)) {
+        const point = city.position.clone();
+        point.y += city.labelLift || 92;
+        point.project(camera);
+        const visible = point.z > -1 && point.z < 1;
+        const nearby = city.position.distanceTo(player.position) < 1250 || city === activeCity;
+        const x = (point.x * 0.5 + 0.5) * innerWidth;
+        const y = (-point.y * 0.5 + 0.5) * innerHeight;
+        city.labelEl.style.left = `${x}px`;
+        city.labelEl.style.top = `${y}px`;
+        city.labelEl.classList.toggle("hidden", !nearby || !visible || y < 0 || y > innerHeight || x < 0 || x > innerWidth);
+      }
+    }
+
+    function drawMinimap() {
+      const width = minimap.width;
+      const height = minimap.height;
+      miniCtx.clearRect(0, 0, width, height);
+      miniCtx.fillStyle = "rgba(27, 62, 75, 0.88)";
+      miniCtx.fillRect(0, 0, width, height);
+
+      function mapPoint(pos) {
+        return {
+          x: (pos.x / WORLD_W + 0.5) * width,
+          y: (pos.z / WORLD_D + 0.5) * height,
+        };
+      }
+
+      function mapLonLat(lon, lat) {
+        return mapPoint(project(lon, lat));
+      }
+
+      miniCtx.fillStyle = "rgba(105, 184, 106, 0.42)";
+      miniCtx.strokeStyle = "rgba(180, 232, 180, 0.45)";
+      miniCtx.lineWidth = 1;
+      MAINLAND_LL.forEach(([lon, lat], index) => {
+        const p = mapLonLat(lon, lat);
+        if (index === 0) {
+          miniCtx.beginPath();
+          miniCtx.moveTo(p.x, p.y);
+        } else {
+          miniCtx.lineTo(p.x, p.y);
+        }
+      });
+      miniCtx.closePath();
+      miniCtx.fill();
+      miniCtx.stroke();
+
+      for (const island of ISLANDS) {
+        const center = mapLonLat(island.lon, island.lat);
+        miniCtx.beginPath();
+        miniCtx.ellipse(
+          center.x,
+          center.y,
+          island.rx / WORLD_W * width,
+          island.rz / WORLD_D * height,
+          island.angle * Math.PI / 180,
+          0,
+          Math.PI * 2
+        );
+        miniCtx.fill();
+      }
+
+      for (const patch of LAND_REINFORCEMENTS) {
+        const center = mapLonLat(patch.lon, patch.lat);
+        miniCtx.beginPath();
+        miniCtx.ellipse(
+          center.x,
+          center.y,
+          patch.rx / WORLD_W * width,
+          patch.rz / WORLD_D * height,
+          patch.angle * Math.PI / 180,
+          0,
+          Math.PI * 2
+        );
+        miniCtx.fill();
+      }
+
+      miniCtx.strokeStyle = "rgba(244, 248, 234, 0.18)";
+      miniCtx.lineWidth = 1;
+      for (const [a, b] of ROADS) {
+        const pa = mapPoint(cities[a].position);
+        const pb = mapPoint(cities[b].position);
+        miniCtx.beginPath();
+        miniCtx.moveTo(pa.x, pa.y);
+        miniCtx.lineTo(pb.x, pb.y);
+        miniCtx.stroke();
+      }
+
+      for (const city of Object.values(cities)) {
+        const p = mapPoint(city.position);
+        miniCtx.beginPath();
+        miniCtx.fillStyle = visited.has(city.key) ? "#70e5a4" : "#fff4c4";
+        miniCtx.arc(p.x, p.y, 2.5, 0, Math.PI * 2);
+        miniCtx.fill();
+      }
+
+      const pp = mapPoint(player.position);
+      miniCtx.beginPath();
+      miniCtx.fillStyle = "#f45b5b";
+      miniCtx.arc(pp.x, pp.y, 5, 0, Math.PI * 2);
+      miniCtx.fill();
+    }
+
+    function movePlayer(dt) {
+      if (interactionOpen || inventoryOpen || diaryAppOpen) {
+        playerVelocity.multiplyScalar(Math.max(0, 1 - 8 * dt));
+        return;
+      }
+
+      const input = new THREE.Vector3();
+      if (keys.has("KeyW") || keys.has("ArrowUp")) input.z -= 1;
+      if (keys.has("KeyS") || keys.has("ArrowDown")) input.z += 1;
+      if (keys.has("KeyA") || keys.has("ArrowLeft")) input.x -= 1;
+      if (keys.has("KeyD") || keys.has("ArrowRight")) input.x += 1;
+
+      if (input.lengthSq() > 0) {
+        walkTarget = null;
+      } else if (walkTarget) {
+        const toTarget = walkTarget.clone().sub(player.position);
+        toTarget.y = 0;
+        if (toTarget.length() < 30) {
+          walkTarget = null;
+        } else {
+          input.copy(toTarget.normalize());
+        }
+      }
+
+      if (input.lengthSq() > 0) {
+        input.normalize();
+        const sprint = keys.has("ShiftLeft") || keys.has("ShiftRight");
+        playerVelocity.addScaledVector(input, (sprint ? 920 : 540) * dt);
+        player.rotation.y = Math.atan2(input.x, input.z);
+      } else {
+        playerVelocity.multiplyScalar(Math.max(0, 1 - 5.4 * dt));
+      }
+
+      const maxSpeed = keys.has("ShiftLeft") || keys.has("ShiftRight") ? 390 : 235;
+      if (playerVelocity.length() > maxSpeed) playerVelocity.setLength(maxSpeed);
+
+      const old = player.position.clone();
+      const next = old.clone().addScaledVector(playerVelocity, dt);
+      if (canStandAt(next.x, next.z)) {
+        player.position.copy(next);
+      } else {
+        const slideX = new THREE.Vector3(next.x, PLAYER_Y, old.z);
+        const slideZ = new THREE.Vector3(old.x, PLAYER_Y, next.z);
+        if (canStandAt(slideX.x, slideX.z)) player.position.copy(slideX);
+        else if (canStandAt(slideZ.x, slideZ.z)) player.position.copy(slideZ);
+        playerVelocity.multiplyScalar(0.18);
+      }
+
+      // 바다에서 바나나보트 타기
+      const onSea = isSea(player.position.x, player.position.z);
+      bananaBoat.visible = onSea;
+
+      if (onSea) {
+        // 바나나보트 위치 동기화
+        bananaBoat.position.copy(player.position);
+        bananaBoat.position.y = PLAYER_Y - 30; // 보트 위치
+        bananaBoat.rotation.y = player.rotation.y;
+
+        // 물결 효과 (위아래로 흔들림)
+        const wobble = Math.sin(performance.now() * 0.004) * 3;
+        bananaBoat.position.y += wobble;
+
+        // 물결 회전
+        bananaBoat.rotation.z = Math.sin(performance.now() * 0.003) * 0.05;
+
+        // 플레이어를 보트 위에 배치
+        player.position.copy(bananaBoat.position);
+        player.position.y = PLAYER_Y + 15; // 보트 위 높이
+        player.rotation.y = bananaBoat.rotation.y;
+      } else {
+        // 육지에서는 일반 플레이어 애니메이션
+        // 점프 물리
+        if (isJumping) {
+          jumpVelocity -= GRAVITY * dt; // 중력 적용
+          player.position.y += jumpVelocity * dt; // Y 위치 업데이트
+
+          // 착지 감지
+          if (player.position.y <= PLAYER_Y) {
+            player.position.y = PLAYER_Y;
+            isJumping = false;
+            jumpVelocity = 0;
+          }
+        } else {
+          // 점프 중이 아닐 때 기본 애니메이션
+          player.position.y = PLAYER_Y + Math.sin(performance.now() * 0.006) * 1.4;
+        }
+      }
+
+      // 점프 쿨다운 감소
+      if (jumpCooldown > 0) {
+        jumpCooldown -= dt;
+      }
+
+      // 토끼 NPC 업데이트
+      updateRabbits(player.position, dt);
+    }
+
+    function updateCamera(dt) {
+      cameraTarget.copy(player.position);
+      cameraTarget.y = LAND_Y;
+      const { lift, back } = cameraSettings();
+      cameraGoal.set(player.position.x, lift, player.position.z + back);
+      camera.position.lerp(cameraGoal, Math.min(1, 8.5 * dt));
+      camera.lookAt(cameraTarget.x, cameraTarget.y + 26, cameraTarget.z);
+    }
+
+    function handleSpecialKeys(event) {
+      if (event.repeat) return;
+      if (isEditableTarget(event.target)) {
+        if (event.code === "Escape" && diaryAppOpen) closeDiaryApp();
+        return;
+      }
+      if (event.code === "Escape" && diaryAppOpen) {
+        closeDiaryApp();
+        return;
+      }
+      if (event.code === "Escape" && !diaryMapModalEl.hidden) {
+        closeDiaryMapEntry();
+        return;
+      }
+      if (event.code === "Escape" && activeGameCity) {
+        closeMiniGame();
+        return;
+      }
+      if (event.code === "KeyI") {
+        event.preventDefault();
+        setInventoryOpen(!inventoryOpen);
+        return;
+      }
+      if (event.code === "Escape" && inventoryOpen) {
+        setInventoryOpen(false);
+        return;
+      }
+      if (event.code === "Escape" && interactionOpen) {
+        closeLocationPopup();
+        return;
+      }
+      if (interactionOpen) return;
+
+      if (event.code === "Space") {
+        event.preventDefault();
+        const city = closestCity(player.position, 125);
+        if (city) {
+          openLocationPopup(city);
+        } else {
+          showToast("가까운 지역이 없습니다");
+        }
+      }
+
+      if (event.code === "Enter") {
+        const target = ferryTarget(player.position);
+        if (target) {
+          player.position.copy(landingPosition(target));
+          playerVelocity.set(0, 0, 0);
+          showToast(`${target.label} 도착`);
+          updateCityState();
+        }
+      }
+    }
+
+    function handleMapPointer(event) {
+      if (interactionOpen || inventoryOpen || diaryAppOpen || activeGameCity) return;
+      if (event.target !== renderer.domElement) return;
+      const rect = renderer.domElement.getBoundingClientRect();
+      pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(pointer, camera);
+      const diaryHit = raycaster.intersectObjects(diaryMarkerGroup.children, true)[0];
+      if (diaryHit) {
+        let node = diaryHit.object;
+        while (node && !node.userData.diaryId) node = node.parent;
+        if (node?.userData.diaryId) {
+          openDiaryMapEntry(node.userData.diaryId);
+          return;
+        }
+      }
+      if (!raycaster.ray.intersectPlane(clickPlane, clickPoint)) return;
+      if (!canStandAt(clickPoint.x, clickPoint.z)) {
+        showToast("지도 위 땅을 눌러 이동해요");
+        return;
+      }
+      walkTarget = clickPoint.clone();
+      walkTarget.y = PLAYER_Y;
+      startWorldBgm();
+    }
+
+    addEventListener("keydown", (event) => {
+      if (!isEditableTarget(event.target)) keys.add(event.code);
+      if (!isEditableTarget(event.target) && MOVEMENT_CODES.has(event.code)) startWorldBgm();
+      handleSpecialKeys(event);
+    });
+
+    addEventListener("keyup", (event) => {
+      keys.delete(event.code);
+    });
+
+    renderer.domElement.addEventListener("pointerdown", handleMapPointer);
+
+    addEventListener("resize", () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+      renderer.setPixelRatio(1);
+    });
+
+    function updateCameraFacingLandmarks() {
+      cityGroup.children.forEach((node) => {
+        if (!node.userData?.faceCamera) return;
+        const dx = camera.position.x - node.position.x;
+        const dz = camera.position.z - node.position.z;
+        node.rotation.y = Math.atan2(dx, dz);
+      });
+    }
+
+    let last = performance.now();
+    function animate(now) {
+      const dt = Math.min(0.033, (now - last) / 1000);
+      last = now;
+      movePlayer(dt);
+      updateCamera(dt);
+      updateCameraFacingLandmarks();
+      updateCityState();
+      updateLabels();
+      updateDiaryMapLabels();
+      drawMinimap();
+      roadsGroup.rotation.y = Math.sin(now * 0.0004) * 0.002;
+      if (player.userData.tail) {
+        player.userData.tail.rotation.y = Math.sin(now * 0.006) * 0.12;
+      }
+      speedValueEl.textContent = Math.round(playerVelocity.length()).toString();
+      renderer.render(scene, camera);
+      requestAnimationFrame(animate);
+    }
+
+    renderInventory();
+    renderDiaryMapMarkers();
+    updateCityState();
+    showToast("광주에서 출발");
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

@@ -1,0 +1,1942 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>동네 보물길</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <style>
+    @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css");
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { min-height: 100%; font-family: Pretendard, "Segoe UI", sans-serif; color: #34403a; }
+    body {
+      background:
+        radial-gradient(circle at 12% 14%, rgba(255, 238, 185, .95) 0 120px, transparent 121px),
+        linear-gradient(135deg, #f8f3dd 0%, #dff3df 48%, #d8eef8 100%);
+    }
+    button, input, select { font-family: inherit; }
+    .app { min-height: 100vh; display: grid; grid-template-rows: auto 1fr; }
+    .hero {
+      padding: 26px 28px 18px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+    }
+    .brand { display: flex; gap: 14px; align-items: center; }
+    .brand-mark {
+      width: 58px; height: 58px; display: grid; place-items: center;
+      border-radius: 20px; background: #fff8cf; box-shadow: 0 10px 24px rgba(106, 134, 92, .18);
+      border: 2px solid rgba(116, 154, 103, .26); font-size: 28px;
+    }
+    .hero h1 { font-size: clamp(28px, 4vw, 42px); letter-spacing: 0; color: #2d5942; }
+    .hero p { margin-top: 6px; color: #5e755f; line-height: 1.5; font-weight: 650; }
+    .route-note {
+      max-width: 370px; padding: 14px 16px; border-radius: 18px;
+      background: rgba(255,255,255,.72); border: 1px solid rgba(114, 149, 117, .2);
+      box-shadow: 0 12px 28px rgba(72, 110, 92, .12); color: #58715f; font-size: 13px; line-height: 1.5;
+    }
+    .layout { min-height: 0; display: grid; grid-template-columns: minmax(360px, 1fr) 410px; gap: 18px; padding: 0 20px 20px; }
+    .map-shell, .side { min-width: 0; }
+    .control-card {
+      margin-bottom: 14px; padding: 16px; border-radius: 24px;
+      background: rgba(255, 252, 239, .9); border: 1px solid rgba(141, 174, 129, .22);
+      box-shadow: 0 16px 38px rgba(78, 118, 97, .14);
+    }
+    .control-grid { display: grid; grid-template-columns: 84px minmax(180px, 1fr) auto; gap: 10px; align-items: center; }
+    .control-row { margin-top: 10px; display: grid; grid-template-columns: 84px minmax(180px, 1fr) 84px minmax(180px, 1fr) 82px 110px 82px 110px; gap: 10px; align-items: center; }
+    label { font-size: 13px; font-weight: 900; color: #60745f; }
+    input, select {
+      width: 100%; height: 44px; padding: 0 14px; border: 2px solid #d8e8d2; border-radius: 16px;
+      background: #fffef7; color: #34403a; font-size: 14px; outline: none;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+    }
+    input:focus, select:focus { border-color: #8ac295; box-shadow: 0 0 0 4px rgba(138,194,149,.18); }
+    .suggest-field { position: relative; min-width: 0; }
+    .suggestions {
+      position: absolute; z-index: 1200; top: calc(100% + 8px); left: 0; right: 0;
+      display: none; max-height: 260px; overflow: auto; padding: 8px;
+      border-radius: 18px; background: rgba(255, 254, 247, .98); border: 2px solid #d8e8d2;
+      box-shadow: 0 18px 34px rgba(76, 113, 84, .2); list-style: none;
+    }
+    .suggestions.show { display: grid; gap: 6px; }
+    .suggestions li {
+      padding: 10px 11px; border-radius: 14px; cursor: pointer; background: #fffef7;
+      border: 1px solid transparent;
+    }
+    .suggestions li:hover { background: #eef8e9; border-color: #cce4c3; }
+    .suggest-name { display: block; color: #315f45; font-weight: 950; font-size: 14px; margin-bottom: 3px; }
+    .suggest-meta { display: block; color: #6c8069; font-size: 12px; line-height: 1.35; }
+    .suggest-empty { color: #7a8a75; font-size: 13px; cursor: default; }
+    .button-row { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+    .route-options {
+      margin-top: 10px; display: grid; grid-template-columns: 140px minmax(180px, 1fr) 92px minmax(150px, 220px);
+      gap: 10px; align-items: center; padding: 12px; border-radius: 18px; background: rgba(241, 248, 236, .72);
+      border: 1px solid #d8e8d2;
+    }
+    .choice-panel {
+      margin-top: 10px; display: grid; gap: 10px; padding: 12px; border-radius: 18px;
+      background: rgba(255, 254, 247, .78); border: 1px solid #d8e8d2;
+    }
+    .choice-group { display: grid; grid-template-columns: 84px minmax(0, 1fr); gap: 10px; align-items: start; }
+    .choice-options { display: flex; flex-wrap: wrap; gap: 8px; }
+    .choice-chip {
+      position: relative; min-height: 36px; display: inline-flex; align-items: center; cursor: pointer;
+      border-radius: 999px; background: #fffef7; border: 2px solid #d8e8d2; color: #58715f;
+      box-shadow: 0 6px 14px rgba(91, 122, 83, .1); overflow: hidden;
+    }
+    .choice-chip input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .choice-chip span { padding: 8px 12px; font-size: 13px; font-weight: 900; }
+    .choice-chip:has(input:checked) {
+      background: #dff6e7; border-color: #73bf8b; color: #285c3d;
+      box-shadow: 0 8px 18px rgba(70, 151, 99, .18), inset 0 -2px 0 rgba(34, 105, 61, .08);
+    }
+    .range-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 58px; gap: 10px; align-items: center; }
+    input[type="range"] { height: auto; padding: 0; border: 0; box-shadow: none; accent-color: #6abf8a; background: transparent; }
+    .range-value { font-size: 13px; font-weight: 950; color: #315f45; text-align: right; }
+    button {
+      height: 44px; border: 0; border-radius: 16px; padding: 0 16px; cursor: pointer;
+      font-weight: 900; color: #486044; background: #fff8cf;
+      box-shadow: 0 8px 18px rgba(91, 122, 83, .16), inset 0 -2px 0 rgba(121, 145, 89, .12);
+      transition: transform .16s ease, box-shadow .16s ease;
+    }
+    button:hover { transform: translateY(-1px); box-shadow: 0 12px 22px rgba(91, 122, 83, .2); }
+    button.primary { color: #fff; background: #6abf8a; box-shadow: 0 10px 20px rgba(70, 151, 99, .26), inset 0 -2px 0 rgba(34, 105, 61, .2); }
+    button.secondary { background: #dff3ff; color: #3f6f82; }
+    .point-status { margin-top: 12px; display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip {
+      display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 7px 11px; border-radius: 999px;
+      background: #eef8e9; color: #577159; font-size: 13px; font-weight: 800;
+    }
+    .chip strong { color: #2d5942; }
+    .status {
+      margin-top: 12px; padding: 12px 14px; border-radius: 16px;
+      background: #f1f8ec; color: #557057; border: 1px solid #d8e8d2; font-weight: 750; line-height: 1.45;
+    }
+    .status.success { background: #e6f7ec; border-color: #bfe5c9; color: #2f7c4c; }
+    .status.error { background: #fff0e9; border-color: #f3c7b2; color: #b24a2b; }
+    .status.demo { background: #fff8d9; border-color: #ead88d; color: #85691d; }
+    #map {
+      height: calc(100vh - 330px); min-height: 500px; width: 100%; border-radius: 26px;
+      border: 5px solid rgba(255, 255, 255, .86); box-shadow: 0 20px 46px rgba(68, 107, 93, .2);
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 18% 22%, rgba(255, 255, 255, .42) 0 42px, transparent 43px),
+        radial-gradient(circle at 84% 18%, rgba(255, 249, 198, .45) 0 66px, transparent 67px),
+        linear-gradient(180deg, #bfe8f6 0%, #d9f2f7 48%, #c7e6f0 100%);
+    }
+    #map .leaflet-container { background: transparent; }
+    .leaflet-tile-pane .pastel-map-tiles {
+      filter: saturate(.78) hue-rotate(12deg) brightness(1.04) contrast(.92);
+      opacity: .97;
+    }
+    .leaflet-container { font-family: Pretendard, "Segoe UI", sans-serif; }
+    .leaflet-pane.cute-base-pane svg { filter: drop-shadow(0 14px 18px rgba(88, 122, 88, .16)); }
+    .cute-region-label {
+      display: none;
+      place-items: center; min-width: 54px; height: 26px; padding: 0 10px;
+      border-radius: 999px; background: rgba(255, 254, 247, .92); border: 2px solid rgba(143, 188, 145, .42);
+      color: #456f53; font-size: 12px; font-weight: 950; box-shadow: 0 7px 14px rgba(77, 112, 83, .14);
+      white-space: nowrap;
+    }
+    #map.show-cute-overview .cute-region-label {
+      display: inline-grid; place-items: center; min-width: 54px; height: 26px; padding: 0 10px;
+      border-radius: 999px; background: rgba(255, 254, 247, .92); border: 2px solid rgba(143, 188, 145, .42);
+      color: #456f53; font-size: 12px; font-weight: 950; box-shadow: 0 7px 14px rgba(77, 112, 83, .14);
+      white-space: nowrap;
+    }
+    .cute-map-legend {
+      padding: 9px 12px; border-radius: 16px; background: rgba(255, 254, 247, .93);
+      border: 2px solid rgba(145, 189, 153, .35); color: #58715f; font-size: 12px; font-weight: 850;
+      box-shadow: 0 10px 22px rgba(79, 111, 86, .16);
+    }
+    .cute-map-legend strong { display: block; color: #315f45; margin-bottom: 2px; font-size: 13px; }
+    .leaflet-control-attribution { display: none; }
+    .leaflet-control-zoom {
+      border: 0 !important; border-radius: 16px !important; overflow: hidden;
+      box-shadow: 0 10px 20px rgba(72, 106, 85, .2) !important;
+    }
+    .leaflet-control-zoom a {
+      background: #fffef7 !important; color: #4f7a5e !important; border-color: #e1ecd9 !important;
+      font-weight: 950;
+    }
+    .leaflet-popup-content-wrapper {
+      border-radius: 18px; background: #fffef7; color: #34403a;
+      box-shadow: 0 14px 28px rgba(76, 113, 84, .2);
+    }
+    .leaflet-popup-tip { background: #fffef7; }
+    .leaflet-container a.leaflet-popup-close-button { color: #5b765b; }
+    .side { display: grid; gap: 14px; align-content: start; }
+    .panel {
+      border-radius: 24px; background: rgba(255, 252, 239, .92);
+      border: 1px solid rgba(141, 174, 129, .22); box-shadow: 0 16px 38px rgba(78, 118, 97, .13);
+      padding: 16px;
+    }
+    .panel h2 { color: #315f45; font-size: 19px; margin-bottom: 12px; }
+    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .summary-card { padding: 13px; border-radius: 18px; background: #f2f9ee; border: 1px solid #dcebd5; }
+    .summary-card span { display: block; color: #6c8069; font-size: 12px; font-weight: 850; margin-bottom: 5px; }
+    .summary-card strong { color: #2d5942; font-size: 24px; }
+    .recommendations { list-style: none; display: grid; gap: 12px; }
+    .recommendations li {
+      display: grid; grid-template-columns: 42px minmax(0, 1fr) 68px; gap: 12px; padding: 14px;
+      border-radius: 20px; background: #fffef7; border: 2px solid #e1ecd9; cursor: pointer;
+      box-shadow: 0 8px 18px rgba(93, 127, 98, .1);
+    }
+    .recommendations li:hover { border-color: #9bd29f; }
+    .rank {
+      width: 38px; height: 38px; display: grid; place-items: center; border-radius: 14px;
+      background: #7bcf98; color: #fff; font-weight: 950; box-shadow: inset 0 -2px 0 rgba(48, 127, 77, .22);
+    }
+    .place-name { font-size: 16px; font-weight: 950; color: #34403a; margin-bottom: 5px; }
+    .place-reason { font-size: 13px; color: #637664; line-height: 1.45; margin-bottom: 9px; }
+    .meta { display: flex; flex-wrap: wrap; gap: 6px; }
+    .meta span { padding: 5px 8px; border-radius: 999px; background: #edf7e7; color: #58715f; font-size: 12px; font-weight: 850; }
+    .hidden-score { align-self: center; text-align: center; padding: 8px; border-radius: 16px; background: #fff8cf; color: #765c12; }
+    .hidden-score strong { display: block; font-size: 24px; }
+    .hidden-score span { font-size: 11px; font-weight: 900; }
+    .empty-state { text-align: center; color: #6d8069; padding: 24px 12px; line-height: 1.55; }
+    .empty-state .icon { font-size: 34px; margin-bottom: 8px; }
+    .detail-panel { display: none; }
+    .detail-panel.show { display: block; }
+    .detail-body { display: grid; gap: 8px; color: #58715f; font-size: 13px; line-height: 1.5; }
+    .detail-title { color: #315f45; font-size: 17px; font-weight: 950; }
+    .detail-link { color: #32775a; font-weight: 900; text-decoration: none; }
+    body.world-open { overflow: hidden; }
+    .world-overlay {
+      position: fixed; inset: 0; z-index: 5000; display: grid; grid-template-rows: auto 1fr;
+      background: #dff3df;
+    }
+    .world-overlay[hidden] { display: none; }
+    .world-bar {
+      display: flex; align-items: center; justify-content: space-between; gap: 14px;
+      padding: 12px 16px; background: rgba(255, 254, 247, .96); border-bottom: 2px solid #d8e8d2;
+      box-shadow: 0 10px 24px rgba(78, 118, 97, .12);
+    }
+    .world-title { min-width: 0; }
+    .world-title strong { display: block; color: #315f45; font-size: 18px; }
+    .world-title span { display: block; color: #6c8069; font-size: 13px; margin-top: 2px; }
+    .world-frame {
+      width: 100%; height: 100%; border: 0; background: #9fd5ee;
+    }
+    .marker-sign {
+      position: relative; display: grid; place-items: center; width: 48px; height: 38px;
+      border-radius: 16px 16px 13px 13px; border: 3px solid #fff; color: #fff; font-weight: 950;
+      box-shadow: 0 8px 18px rgba(64, 88, 66, .28), inset 0 -2px 0 rgba(0,0,0,.08);
+    }
+    .marker-sign::after {
+      content: ""; position: absolute; left: 50%; bottom: -9px; width: 8px; height: 12px;
+      transform: translateX(-50%); border-radius: 4px; background: #8b6f47;
+    }
+    .marker-start { background: linear-gradient(180deg, #88d39f, #52aa75); font-size: 11px; }
+    .marker-end { background: linear-gradient(180deg, #f4a085, #e36f5c); font-size: 11px; }
+    .marker-place { background: linear-gradient(180deg, #8fd2ee, #62a9d0); width: 38px; height: 34px; font-size: 17px; }
+    .marker-other { background: linear-gradient(180deg, #ffd986, #e7a93f); width: 30px; height: 28px; font-size: 12px; }
+    .marker-demo { background: #f0b84a; width: 24px; height: 24px; border-radius: 10px; font-size: 12px; }
+    @media (max-width: 1120px) {
+      .layout { grid-template-columns: 1fr; }
+      .side { grid-template-columns: 1fr; }
+      #map { height: 520px; }
+      .hero { grid-template-columns: 1fr; }
+      .route-note { max-width: none; }
+    }
+    @media (max-width: 760px) {
+      .hero { padding: 20px 16px 12px; }
+      .layout { padding: 0 12px 14px; }
+      .control-grid, .control-row, .route-options, .choice-group { grid-template-columns: 1fr; }
+      .summary { grid-template-columns: 1fr; }
+      .recommendations li { grid-template-columns: 38px minmax(0, 1fr); }
+      .hidden-score { grid-column: 2; text-align: left; }
+      #map { height: 420px; min-height: 420px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="hero">
+      <div class="brand">
+        <div class="brand-mark">⌂</div>
+        <div>
+          <h1>동네 보물길</h1>
+          <p>출발지와 도착지 사이, 살짝 돌아가도 좋은 숨은 문화공간을 찾아요.</p>
+        </div>
+      </div>
+      <div class="route-note">
+        현재 경로는 실제 도보 내비게이션이 아니라 <strong>직선 연결 기반의 산책 후보 추천</strong>입니다. 실제 이동 전 지도 앱으로 길을 한 번 더 확인해주세요.
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="map-shell">
+        <div class="control-card">
+          <div class="control-grid">
+            <label for="startInput">출발지</label>
+            <div class="suggest-field">
+              <input id="startInput" type="search" placeholder="예: 광화문역, 하얏트" value="광화문역" autocomplete="off" />
+              <ul id="startSuggestions" class="suggestions"></ul>
+            </div>
+            <button id="setStartButton" type="button">START 찾기</button>
+          </div>
+          <div class="control-grid" style="margin-top:10px">
+            <label for="endInput">도착지</label>
+            <div class="suggest-field">
+              <input id="endInput" type="search" placeholder="예: 을지로입구역, 하얏트" value="을지로입구역" autocomplete="off" />
+              <ul id="endSuggestions" class="suggestions"></ul>
+            </div>
+            <button id="setEndButton" type="button">END 찾기</button>
+          </div>
+          <div class="control-row">
+            <label for="queryInput">찾을 곳</label>
+            <div class="suggest-field">
+              <input id="queryInput" type="search" placeholder="독립서점, 전시 공간, 지역 문화" value="전시 공간" autocomplete="off" />
+              <ul id="querySuggestions" class="suggestions"></ul>
+            </div>
+            <label for="interestInput">관심사</label>
+            <input id="interestInput" type="text" placeholder="책방 전시 지역문화" value="책방 전시 지역문화" />
+            <label for="budgetSelect">시간</label>
+            <select id="budgetSelect">
+              <option value="45">45분</option>
+              <option value="60" selected>60분</option>
+              <option value="90">90분</option>
+              <option value="120">120분</option>
+            </select>
+            <label for="recommendCountSelect">추천 수</label>
+            <select id="recommendCountSelect">
+              <option value="1">1곳</option>
+              <option value="2">2곳</option>
+              <option value="3" selected>3곳</option>
+              <option value="4">4곳</option>
+              <option value="5">5곳</option>
+            </select>
+          </div>
+          <div class="choice-panel" aria-label="추천 조건 선택">
+            <div class="choice-group">
+              <label>찾을 곳</label>
+              <div class="choice-options" id="queryChoices">
+                <label class="choice-chip"><input type="checkbox" value="전시 공간" checked /><span>전시 공간</span></label>
+                <label class="choice-chip"><input type="checkbox" value="독립서점" /><span>독립서점</span></label>
+                <label class="choice-chip"><input type="checkbox" value="문화유산" /><span>문화유산</span></label>
+                <label class="choice-chip"><input type="checkbox" value="작은도서관" /><span>작은도서관</span></label>
+                <label class="choice-chip"><input type="checkbox" value="갤러리" /><span>갤러리</span></label>
+                <label class="choice-chip"><input type="checkbox" value="박물관" /><span>박물관</span></label>
+                <label class="choice-chip"><input type="checkbox" value="공방" /><span>공방</span></label>
+                <label class="choice-chip"><input type="checkbox" value="공연장" /><span>공연장</span></label>
+              </div>
+            </div>
+            <div class="choice-group">
+              <label>관심사</label>
+              <div class="choice-options" id="interestChoices">
+                <label class="choice-chip"><input type="checkbox" value="책방" checked /><span>책방</span></label>
+                <label class="choice-chip"><input type="checkbox" value="전시" checked /><span>전시</span></label>
+                <label class="choice-chip"><input type="checkbox" value="지역문화" checked /><span>지역문화</span></label>
+                <label class="choice-chip"><input type="checkbox" value="독립창작" /><span>독립창작</span></label>
+                <label class="choice-chip"><input type="checkbox" value="전통" /><span>전통</span></label>
+                <label class="choice-chip"><input type="checkbox" value="역사" /><span>역사</span></label>
+                <label class="choice-chip"><input type="checkbox" value="미술" /><span>미술</span></label>
+                <label class="choice-chip"><input type="checkbox" value="산책" /><span>산책</span></label>
+              </div>
+            </div>
+          </div>
+          <div class="route-options">
+            <label for="detourRange">우회 허용</label>
+            <div class="range-wrap">
+              <input id="detourRange" type="range" min="0.3" max="2.5" step="0.1" value="1.2" />
+              <span id="detourLabel" class="range-value">1.2km</span>
+            </div>
+            <label for="modeSelect">추천 모드</label>
+            <select id="modeSelect">
+              <option value="balanced" selected>균형 산책</option>
+              <option value="fast">최단 경로 우선</option>
+              <option value="treasure">숨은 보물 우선</option>
+              <option value="heritage">문화유산 우선</option>
+            </select>
+          </div>
+          <div class="button-row">
+            <button id="openWorldButton" class="secondary" type="button">3D 지도</button>
+            <button id="recommendButton" class="primary" type="button">보물길 추천</button>
+            <button id="locateButton" class="secondary" type="button">내 위치로 이동</button>
+            <button id="clearButton" type="button">다시 고르기</button>
+          </div>
+          <div class="point-status">
+            <span class="chip">START <strong id="startLabel">미설정</strong></span>
+            <span class="chip">END <strong id="endLabel">미설정</strong></span>
+          </div>
+          <div id="status" class="status">START와 END를 검색해서 설정한 뒤 보물길 추천을 눌러주세요.</div>
+        </div>
+        <div id="map" aria-label="Leaflet map"></div>
+      </section>
+
+      <aside class="side">
+        <section class="panel">
+          <h2>추천 경로 요약</h2>
+          <div class="summary">
+            <div class="summary-card"><span>후보</span><strong id="candidateCount">0</strong></div>
+            <div class="summary-card"><span>선택</span><strong id="selectedCount">0</strong></div>
+            <div class="summary-card"><span>예상 시간</span><strong id="usedTime">0분</strong></div>
+          </div>
+        </section>
+        <section class="panel">
+          <h2>추천 결과</h2>
+          <ul id="recommendations" class="recommendations"></ul>
+        </section>
+        <section class="panel">
+          <h2>다른 후보</h2>
+          <ul id="otherCandidates" class="recommendations"></ul>
+        </section>
+        <section id="detailPanel" class="panel detail-panel">
+          <h2>장소 상세</h2>
+          <div id="detailBody" class="detail-body"></div>
+        </section>
+      </aside>
+    </main>
+  </div>
+
+  <section id="worldOverlay" class="world-overlay" hidden aria-label="3D 대한민국 월드맵">
+    <header class="world-bar">
+      <div class="world-title">
+        <strong>3D 지도 탐험 모드</strong>
+        <span>3D 월드맵 안에서 다이어리와 지역 탐험 기능을 사용할 수 있어요.</span>
+      </div>
+      <button id="closeWorldButton" type="button">2D 지도 돌아가기</button>
+    </header>
+    <iframe id="worldFrame" class="world-frame" title="대한민국 3D 월드맵" data-src="합치기용/index.html?start=Gwangju"></iframe>
+  </section>
+
+  <div id="minigameContainer" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6); align-items: center; justify-content: center; z-index: 10000;"></div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="culture-reward-popups.js"></script>
+  <script src="korea-culture-minigames-kit.js"></script>
+  <script>
+    // 게임 레지스트리 초기화: korea-culture-minigames-kit.js의 6개 게임으로 교체
+    let REGION_GAMES = {};
+    if (typeof KoreaCultureMinigames !== 'undefined' && KoreaCultureMinigames.replaceRegionGames) {
+      KoreaCultureMinigames.replaceRegionGames(REGION_GAMES);
+      console.log("✓ 게임 레지스트리 초기화 완료:", Object.keys(REGION_GAMES));
+    } else {
+      console.warn("⚠ KoreaCultureMinigames 로드 실패 - 게임 초기화 불가");
+    }
+
+    let map;
+    let minigameInstance = null;
+    let unlockedCulturalCards = new Set();
+    let startPoint = null;
+    let endPoint = null;
+    let routeLine = null;
+    let treasureLine = null;
+    let routeData = null;
+    let routePointMarkers = [];
+    let routeMarkers = [];
+    let candidateMarkers = [];
+    let otherCandidateMarkers = [];
+    let activeController = null;
+    let rewardPopups = null;
+    const suggestionTimers = {};
+    const suggestionControllers = {};
+    const koreaBounds = L.latLngBounds([32.55, 124.40], [38.85, 132.15]);
+    const RECOMMENDATION_CACHE_KEY = "hidden-culture-map.recommendation-cache.v1";
+
+    const demoPlaces = [
+      { name: "서촌 독립출판 골목", category: "독립서점", address: "서울 종로구 필운대로", lat: 37.5799, lng: 126.9655, reviewCount: 17, description: "작은 출판사와 독립 책방이 모인 골목 문화 공간" },
+      { name: "공덕동 공예 작업실", category: "공예", address: "서울 마포구 공덕동", lat: 37.5442, lng: 126.9518, reviewCount: 9, description: "생활 공예와 지역 창작자가 만나는 작은 작업실" },
+      { name: "을지로 소규모 전시실", category: "전시", address: "서울 중구 을지로", lat: 37.5668, lng: 126.9910, reviewCount: 26, description: "인쇄 골목 사이에 숨어 있는 실험 전시 공간" },
+      { name: "인사동 전통 공방", category: "전통", address: "서울 종로구 인사동", lat: 37.5740, lng: 126.9852, reviewCount: 45, description: "전통 재료와 현대 창작을 잇는 공방" },
+      { name: "해방촌 로컬 아카이브", category: "지역문화", address: "서울 용산구 신흥로", lat: 37.5448, lng: 126.9874, reviewCount: 14, description: "동네 기록과 주민 이야기를 모으는 문화 거점" },
+      { name: "성수 독립창작 라운지", category: "독립창작", address: "서울 성동구 성수동", lat: 37.5446, lng: 127.0557, reviewCount: 35, description: "독립 창작자들의 팝업과 워크숍 공간" },
+      { name: "광화문 작은 책방", category: "책방", address: "서울 종로구 새문안로", lat: 37.5726, lng: 126.9769, reviewCount: 21, description: "대형 서점 주변에서 발견하는 조용한 큐레이션 책방" },
+      { name: "정동 근대문화 산책길", category: "역사문화", address: "서울 중구 정동", lat: 37.5662, lng: 126.9717, reviewCount: 33, description: "근대 건축과 공연 문화가 이어지는 산책 경로" }
+    ];
+
+    const CMRS_MAIN_THRESHOLD = 5;
+    const CMRS_OTHER_THRESHOLD = 5;
+    const CMRS_BASE_SCORE = 40;
+    const CULTURE_KEYWORDS = ["전시", "갤러리", "미술관", "박물관", "소극장", "공연장", "독립서점", "책방", "도서관", "공방", "문화재", "전통", "기념관", "생활문화센터", "지역문화"];
+    const MARGINAL_KEYWORDS = ["독립", "작은", "소규모", "골목", "동네", "로컬", "생활문화", "작업실", "아카이브", "소극장", "인디", "창작", "주민", "커뮤니티"];
+    const LOCAL_INDEPENDENT_KEYWORDS = ["로컬", "지역", "동네", "골목", "마을", "독립", "인디", "창작", "작가", "공방", "작업실", "생활문화", "주민", "아카이브", "커뮤니티"];
+    const HARD_FILTER_KEYWORDS = [
+      "음식점", "맛집", "식당", "한식", "중식", "중식당", "일식", "일식당", "양식", "분식", "뷔페",
+      "마라", "마라탕", "마라샹궈", "탕후루", "떡볶이", "치킨", "피자", "버거", "고기", "고깃집",
+      "카페", "커피", "베이커리", "디저트", "술집", "호프", "주점", "포차",
+      "병원", "약국", "부동산", "미용실", "학원", "호텔", "은행", "편의점", "마트", "주차장", "숙박", "노래방", "pc방"
+    ];
+    const MAINSTREAM_BRANDS = [
+      "스타벅스", "투썸", "이디야", "메가커피", "빽다방", "컴포즈커피", "더벤티",
+      "맥도날드", "롯데리아", "버거킹", "맘스터치", "교촌치킨", "bhc", "bbq",
+      "마라공방", "라화쿵부", "탕화쿵푸", "홍콩반점", "본죽", "한솥", "서브웨이",
+      "백화점", "쇼핑몰", "cgv", "메가박스", "롯데시네마", "교보문고", "영풍문고", "알라딘", "yes24",
+      "롯데", "신세계", "현대백화점"
+    ];
+
+    function init() {
+      map = L.map("map", {
+        zoomControl: true,
+        minZoom: 6,
+        maxZoom: 19,
+        maxBounds: koreaBounds,
+        maxBoundsViscosity: 1,
+        zoomSnap: 0.5,
+        wheelPxPerZoomLevel: 90
+      }).setView([37.5665, 126.9780], 12);
+      drawCuteKoreaMap();
+      map.on("zoomend", updateCuteMapDetailLevel);
+      updateCuteMapDetailLevel();
+      L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
+        attribution: "© OpenStreetMap contributors © CARTO",
+        maxZoom: 19,
+        className: "pastel-map-tiles"
+      }).addTo(map);
+
+      document.getElementById("setStartButton").addEventListener("click", setStartPoint);
+      document.getElementById("setEndButton").addEventListener("click", setEndPoint);
+      document.getElementById("recommendButton").addEventListener("click", searchPlaces);
+      document.getElementById("openWorldButton").addEventListener("click", openWorldMap);
+      document.getElementById("closeWorldButton").addEventListener("click", closeWorldMap);
+      document.getElementById("locateButton").addEventListener("click", moveToMyLocation);
+      document.getElementById("clearButton").addEventListener("click", clearMap);
+      window.addEventListener("message", handleWorldMessage);
+      document.getElementById("detourRange").addEventListener("input", (event) => {
+        document.getElementById("detourLabel").textContent = `${Number(event.target.value).toFixed(1)}km`;
+      });
+      setupChoiceControls();
+      ["queryInput", "interestInput"].forEach((id) => {
+        document.getElementById(id).addEventListener("keydown", (event) => {
+          if (event.key === "Enter") searchPlaces();
+        });
+      });
+      document.getElementById("startInput").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") setStartPoint();
+      });
+      document.getElementById("endInput").addEventListener("keydown", (event) => {
+        if (event.key === "Enter") setEndPoint();
+      });
+      setupPlaceSuggest("startInput", "startSuggestions", "start");
+      setupPlaceSuggest("endInput", "endSuggestions", "end");
+      setupPlaceSuggest("queryInput", "querySuggestions", "query");
+
+      drawDemoCandidateMarkers();
+      drawRecommendations([]);
+      setupMinigameUI();
+      setupRewardPopups();
+
+      if (window.location.protocol === "file:") {
+        setStatus("파일로 열면 실제 검색 서버에 연결할 수 없어요. npm install 후 npm start로 실행하고 http://127.0.0.1:8000/leaflet.html 로 접속해주세요.", "error");
+        return;
+      }
+      setStatus("START와 END를 검색해서 설정해 주세요. 네이버 API 키는 서버의 .env에서만 읽습니다.", "info");
+    }
+
+    function drawCuteKoreaMap() {
+      map.createPane("cuteBase");
+      map.getPane("cuteBase").style.zIndex = 180;
+      map.getPane("cuteBase").classList.add("cute-base-pane");
+      map.createPane("cuteLabels");
+      map.getPane("cuteLabels").style.zIndex = 430;
+
+      const landStyle = {
+        pane: "cuteBase",
+        color: "#7fb979",
+        weight: 3,
+        opacity: 0.85,
+        fillColor: "#dff4c9",
+        fillOpacity: 0.96,
+        interactive: false
+      };
+      const islandStyle = {
+        pane: "cuteBase",
+        color: "#7fb979",
+        weight: 2,
+        opacity: 0.8,
+        fillColor: "#e7f7cf",
+        fillOpacity: 0.95,
+        interactive: false
+      };
+      const koreaOutline = [
+        [38.62, 128.35], [38.28, 128.67], [37.95, 129.22], [37.38, 129.35],
+        [36.64, 129.45], [35.96, 129.52], [35.42, 129.36], [34.96, 128.98],
+        [34.72, 128.34], [34.48, 127.66], [34.30, 126.78], [34.42, 126.02],
+        [34.86, 125.70], [35.30, 126.02], [35.86, 126.25], [36.40, 126.32],
+        [36.95, 126.06], [37.42, 126.20], [37.86, 126.55], [38.16, 127.08],
+        [38.42, 127.62], [38.62, 128.35]
+      ];
+      const jeju = [
+        [33.56, 126.12], [33.62, 126.48], [33.48, 126.86],
+        [33.27, 126.90], [33.15, 126.53], [33.23, 126.18]
+      ];
+      L.polygon(koreaOutline, landStyle).addTo(map);
+      L.polygon(jeju, islandStyle).addTo(map);
+      L.circle([37.50, 130.88], { ...islandStyle, radius: 15000 }).addTo(map);
+      L.circle([37.24, 131.87], { ...islandStyle, radius: 6500 }).addTo(map);
+
+      [
+        { center: [37.45, 127.05], radius: 76000, color: "#ffdca8" },
+        { center: [37.55, 128.35], radius: 90000, color: "#c8ead0" },
+        { center: [36.45, 127.20], radius: 92000, color: "#fff1a8" },
+        { center: [35.35, 126.95], radius: 105000, color: "#ffd3c3" },
+        { center: [35.85, 128.55], radius: 125000, color: "#c8e8ff" },
+        { center: [33.38, 126.52], radius: 39000, color: "#f3d1ff" }
+      ].forEach((region) => {
+        L.circle(region.center, {
+          pane: "cuteBase",
+          radius: region.radius,
+          stroke: false,
+          fillColor: region.color,
+          fillOpacity: 0.42,
+          interactive: false
+        }).addTo(map);
+      });
+
+      [
+        ["서울", 37.5665, 126.9780], ["인천", 37.4563, 126.7052], ["춘천", 37.8813, 127.7298],
+        ["대전", 36.3504, 127.3845], ["전주", 35.8242, 127.1480], ["광주", 35.1595, 126.8526],
+        ["대구", 35.8714, 128.6014], ["부산", 35.1796, 129.0756], ["강릉", 37.7519, 128.8761],
+        ["제주", 33.4996, 126.5312]
+      ].forEach(([name, lat, lng]) => addCuteRegionLabel(name, lat, lng));
+
+      const legend = L.control({ position: "bottomleft" });
+      legend.onAdd = () => {
+        const div = L.DomUtil.create("div", "cute-map-legend");
+        div.innerHTML = "<strong>대한민국 간단 지도</strong><span>실제 좌표는 유지하고 배경만 단순화했어요.</span>";
+        return div;
+      };
+      legend.addTo(map);
+    }
+
+    function addCuteRegionLabel(name, lat, lng) {
+      const regionKey = { "서울": "Seoul", "대전": "Daejeon", "광주": "Gwangju", "부산": "Busan", "강릉": "Gangneung", "제주": "Jeju" }[name];
+      const marker = L.marker([lat, lng], {
+        pane: "cuteLabels",
+        interactive: true,
+        icon: L.divIcon({
+          html: `<div class="cute-region-label" style="cursor: ${regionKey ? 'pointer' : 'default'};">${name}</div>`,
+          className: "",
+          iconSize: [72, 30],
+          iconAnchor: [36, 15]
+        })
+      }).addTo(map);
+
+      if (regionKey) {
+        marker.on("click", () => {
+          console.log("Starting minigame for:", regionKey);
+          startMinigame(regionKey);
+        });
+      }
+    }
+
+    function updateCuteMapDetailLevel() {
+      const isOverview = map.getZoom() < 9;
+      map.getContainer().classList.toggle("show-cute-overview", isOverview);
+    }
+
+    function setupChoiceControls() {
+      const syncChoices = () => {
+        const queryValues = getCheckedValues("queryChoices");
+        const interestValues = getCheckedValues("interestChoices");
+        document.getElementById("queryInput").value = queryValues.length ? queryValues.join(" ") : "문화공간";
+        document.getElementById("interestInput").value = interestValues.join(" ");
+      };
+
+      ["queryChoices", "interestChoices"].forEach((id) => {
+        document.getElementById(id).addEventListener("change", syncChoices);
+      });
+      syncChoices();
+    }
+
+    function getCheckedValues(groupId) {
+      return [...document.querySelectorAll(`#${groupId} input[type="checkbox"]:checked`)].map((input) => input.value);
+    }
+
+    function openWorldMap() {
+      const overlay = document.getElementById("worldOverlay");
+      const frame = document.getElementById("worldFrame");
+      if (!frame.getAttribute("src")) frame.src = frame.dataset.src;
+      overlay.hidden = false;
+      document.body.classList.add("world-open");
+    }
+
+    function closeWorldMap() {
+      document.getElementById("worldOverlay").hidden = true;
+      document.body.classList.remove("world-open");
+    }
+
+    function setupRewardPopups() {
+      if (typeof CultureRewardPopups === "undefined") {
+        console.warn("CultureRewardPopups not loaded");
+        return;
+      }
+
+      rewardPopups = CultureRewardPopups.init({
+        regions: {
+          Seoul: { costumeImage: "아이템/서울_인벤토리.png" },
+          Daejeon: { costumeImage: "아이템/대전_인벤토리.png" },
+          Gwangju: { costumeImage: "아이템/광주_인벤토리.png" },
+          Busan: { costumeImage: "아이템/부산_인벤토리.png" },
+          Jeju: { costumeImage: "아이템/제주도_인벤토리.png" },
+        },
+        onInventoryAdd(reward) {
+          document.dispatchEvent(new CustomEvent("leaflet:culture-reward-added", { detail: { reward } }));
+        },
+      });
+    }
+
+    function showCultureRewardPopup(regionKey, detail = {}) {
+      if (!rewardPopups && typeof CultureRewardPopups !== "undefined") {
+        setupRewardPopups();
+      }
+
+      if (!rewardPopups || !regionKey) {
+        return;
+      }
+
+      rewardPopups.showReward(regionKey, detail);
+    }
+
+    function handleWorldMessage(event) {
+      if (event.origin !== window.location.origin) {
+        return;
+      }
+
+      const message = event.data || {};
+      if (message.type !== "culture:minigame-clear") {
+        return;
+      }
+
+      const detail = message.detail || {};
+      showCultureRewardPopup(detail.regionKey || detail.cityKey || detail.region, detail);
+    }
+
+    async function setStartPoint() {
+      const query = document.getElementById("startInput").value.trim();
+      if (!query) return setStatus("출발지 검색어를 입력해주세요.", "error");
+      setStatus(`START "${query}"를 찾는 중이에요.`, "info");
+      const point = await searchPointByQuery(query);
+      if (!point) return;
+      startPoint = { ...point, name: point.name || "START" };
+      document.getElementById("startLabel").textContent = startPoint.name;
+      map.setView([startPoint.lat, startPoint.lng], 10.5);
+      refreshRecommendationState();
+      drawMap([]);
+      setStatus(`START를 "${startPoint.name}"로 설정했어요.`, "success");
+    }
+
+    function setupPlaceSuggest(inputId, listId, mode) {
+      const input = document.getElementById(inputId);
+      const list = document.getElementById(listId);
+
+      input.addEventListener("input", () => {
+        window.clearTimeout(suggestionTimers[inputId]);
+        const query = input.value.trim();
+
+        if (query.length < 2) {
+          hideSuggestions(list);
+          return;
+        }
+
+        suggestionTimers[inputId] = window.setTimeout(() => {
+          loadSuggestions(query, input, list, mode);
+        }, 280);
+      });
+
+      input.addEventListener("blur", () => {
+        window.setTimeout(() => hideSuggestions(list), 160);
+      });
+    }
+
+    async function loadSuggestions(query, input, list, mode) {
+      if (suggestionControllers[input.id]) {
+        suggestionControllers[input.id].abort();
+      }
+
+      const controller = new AbortController();
+      suggestionControllers[input.id] = controller;
+      list.innerHTML = `<li class="suggest-empty">실제 장소를 찾는 중이에요...</li>`;
+      list.classList.add("show");
+
+      try {
+        const places = await fetchPlaceSearchFromBackend(query, controller.signal);
+        renderSuggestions(places.map(normalizePlace).filter(hasValidPosition).slice(0, 5), input, list, mode);
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        list.innerHTML = `<li class="suggest-empty">추천 검색어를 불러오지 못했어요.</li>`;
+        list.classList.add("show");
+      }
+    }
+
+    function renderSuggestions(places, input, list, mode) {
+      if (!places.length) {
+        list.innerHTML = `<li class="suggest-empty">실제 장소 후보가 없어요. 더 구체적으로 입력해보세요.</li>`;
+        list.classList.add("show");
+        return;
+      }
+
+      list.innerHTML = places.map((place, index) => `
+        <li data-index="${index}">
+          <span class="suggest-name">${escapeHtml(place.name)}</span>
+          <span class="suggest-meta">${escapeHtml(place.category || "장소")} · ${escapeHtml(place.address || "주소 정보 없음")}</span>
+        </li>
+      `).join("");
+
+      list.querySelectorAll("li[data-index]").forEach((item) => {
+        item.addEventListener("mousedown", (event) => {
+          event.preventDefault();
+          const place = places[Number(item.dataset.index)];
+          chooseSuggestion(place, input, list, mode);
+        });
+      });
+
+      list.classList.add("show");
+    }
+
+    function chooseSuggestion(place, input, list, mode) {
+      input.value = place.name;
+      hideSuggestions(list);
+
+      if (mode === "start") {
+        startPoint = { ...place, name: place.name || "START" };
+        document.getElementById("startLabel").textContent = startPoint.name;
+        map.setView([startPoint.lat, startPoint.lng], 10.5);
+        refreshRecommendationState();
+        drawMap([]);
+        setStatus(`START를 "${startPoint.name}"로 설정했어요.`, "success");
+        return;
+      }
+
+      if (mode === "end") {
+        endPoint = { ...place, name: place.name || "END" };
+        document.getElementById("endLabel").textContent = endPoint.name;
+        map.setView([endPoint.lat, endPoint.lng], 10.5);
+        refreshRecommendationState();
+        drawMap([]);
+        setStatus(`END를 "${endPoint.name}"로 설정했어요.`, "success");
+        return;
+      }
+
+      setStatus(`"${place.name}"을 찾을 곳 검색어로 넣었어요.`, "info");
+    }
+
+    function hideSuggestions(list) {
+      list.classList.remove("show");
+      list.innerHTML = "";
+    }
+
+    async function setEndPoint() {
+      const query = document.getElementById("endInput").value.trim();
+      if (!query) return setStatus("도착지 검색어를 입력해주세요.", "error");
+      setStatus(`END "${query}"를 찾는 중이에요.`, "info");
+      const point = await searchPointByQuery(query);
+      if (!point) return;
+      endPoint = { ...point, name: point.name || "END" };
+      document.getElementById("endLabel").textContent = endPoint.name;
+      map.setView([endPoint.lat, endPoint.lng], 10.5);
+      refreshRecommendationState();
+      drawMap([]);
+      setStatus(`END를 "${endPoint.name}"로 설정했어요.`, "success");
+    }
+
+    async function searchPointByQuery(query) {
+      try {
+        const places = await fetchPlaceSearchFromBackend(query);
+        const point = places.map(normalizePlace).find(hasValidPosition);
+        if (!point) {
+          setStatus(`"${query}" 검색 결과에 좌표가 없어요. 더 구체적인 장소명으로 다시 찾아주세요.`, "error");
+          return null;
+        }
+        return point;
+      } catch (error) {
+        console.error(error);
+        setStatus("장소 검색에 실패했어요. npm start로 서버를 실행했고 .env에 네이버 키가 있는지 확인해주세요.", "error");
+        return null;
+      }
+    }
+
+    async function searchPlaces() {
+      const query = document.getElementById("queryInput").value.trim() || "문화공간";
+      const interest = document.getElementById("interestInput").value.trim();
+      const budget = Number(document.getElementById("budgetSelect").value);
+      const desiredCount = Number(document.getElementById("recommendCountSelect").value || 3);
+      const detourKm = Number(document.getElementById("detourRange").value);
+      const mode = document.getElementById("modeSelect").value;
+
+      if (!startPoint || !endPoint) {
+        setStatus("먼저 START와 END를 검색해서 설정해주세요.", "error");
+        return;
+      }
+
+      setStatus(`"${query}" 후보를 찾고 있어요.`, "info");
+
+      const cacheKey = buildRecommendationCacheKey({ query, interest, budget, desiredCount, detourKm, mode, startPoint, endPoint });
+      const cached = getCachedRecommendation(cacheKey);
+      if (cached) {
+        routeData = cached.routeData || null;
+        drawMap(cached.selected || []);
+        drawRecommendations(cached.selected || []);
+        drawOtherCandidates(cached.others || []);
+        setCounts(cached.rankedCount || 0, (cached.selected || []).length, cached.used || 0);
+        setStatus("처음 검색했을 때의 추천 결과를 그대로 불러왔어요.", "success");
+        return;
+      }
+
+      try {
+        routeData = await fetchRouteOrFallback(startPoint, endPoint);
+        const center = getRouteCenter(startPoint, endPoint);
+        const { places: rawPlaces, usedDemo } = await fetchPlacesFromBackend(query, center.lat, center.lng);
+        const places = rawPlaces.map(normalizePlace).filter(hasValidPosition);
+
+        if (!places.length) {
+          drawMap([]);
+          drawRecommendations([]);
+          setCounts(0, 0, 0);
+          setStatus("좌표가 포함된 장소를 찾지 못했어요. 검색어를 조금 넓혀보세요.", "error");
+          return;
+        }
+
+        const ranked = rankPlaces(places, { query, interest, budget, startPoint, endPoint, map, detourKm, mode, routeData });
+        if (!ranked.length) {
+          drawMap([]);
+          drawRecommendations([]);
+          setCounts(0, 0, 0);
+          setStatus("직선 경로 주변에서 추천할 만한 장소를 찾지 못했어요. 검색어를 넓히거나 START/END를 조정해보세요.", "error");
+          return;
+        }
+
+        const mainCandidates = ranked.filter((place) => place.cultureScore >= CMRS_MAIN_THRESHOLD);
+        const selected = pickPlaces(mainCandidates, budget, desiredCount);
+        const others = pickOtherCandidates(ranked, selected, 8);
+        drawMap(selected);
+        drawRecommendations(selected);
+        drawOtherCandidates(others);
+        const used = selected.reduce((sum, place) => sum + place.stay + place.detour, 0);
+        setCounts(ranked.length, selected.length, used);
+        setCachedRecommendation(cacheKey, { selected, others, rankedCount: ranked.length, used, routeData });
+        setStatus(
+          usedDemo
+            ? "실제 검색 서버 연결 실패로 데모 데이터를 사용 중입니다."
+            : `네이버 실제 장소 ${ranked.length}개 중 ${selected.length}곳을 보물길에 담았어요.`,
+          usedDemo ? "demo" : "success"
+        );
+      } catch (error) {
+        if (error.name === "AbortError") return;
+        console.error(error);
+        setStatus("추천을 만들지 못했어요. 잠시 후 다시 시도해주세요.", "error");
+      }
+    }
+
+    function buildRecommendationCacheKey({ query, interest, budget, desiredCount, detourKm, mode, startPoint, endPoint }) {
+      const pointKey = (point) => [
+        normalizeCacheText(point?.name),
+        normalizeCacheText(point?.address),
+        roundCoord(point?.lat),
+        roundCoord(point?.lng)
+      ].join(":");
+      return [
+        "cmrs-v2",
+        normalizeCacheText(query),
+        normalizeCacheText(interest),
+        budget,
+        desiredCount,
+        Number(detourKm).toFixed(1),
+        mode,
+        pointKey(startPoint),
+        pointKey(endPoint)
+      ].join("|");
+    }
+
+    function normalizeCacheText(value) {
+      return String(value || "").trim().toLowerCase().replace(/s+/g, " ");
+    }
+
+    function roundCoord(value) {
+      const number = Number(value);
+      return Number.isFinite(number) ? number.toFixed(5) : "";
+    }
+
+    function readRecommendationCache() {
+      try {
+        const parsed = JSON.parse(localStorage.getItem(RECOMMENDATION_CACHE_KEY) || "{}");
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function getCachedRecommendation(key) {
+      return readRecommendationCache()[key] || null;
+    }
+
+    function setCachedRecommendation(key, value) {
+      try {
+        const cache = readRecommendationCache();
+        cache[key] = { ...value, createdAt: new Date().toISOString() };
+        const entries = Object.entries(cache).slice(-40);
+        localStorage.setItem(RECOMMENDATION_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
+      } catch (error) {
+        console.warn("Recommendation cache save failed.", error);
+      }
+    }
+
+    async function fetchRouteOrFallback(start, end) {
+      try {
+        const params = new URLSearchParams({
+          startLat: String(start.lat),
+          startLng: String(start.lng),
+          endLat: String(end.lat),
+          endLng: String(end.lng)
+        });
+        const response = await fetch(`/api/route?${params.toString()}`);
+        if (!response.ok) throw new Error(`Route request failed: ${response.status}`);
+        const data = await response.json();
+        const coordinates = (data.coordinates || []).map((point) => ({
+          lat: Number(point.lat),
+          lng: Number(point.lng)
+        })).filter(hasValidPosition);
+        if (coordinates.length < 2) throw new Error("Route response had no usable coordinates");
+        return { ...data, coordinates, usedFallback: false };
+      } catch (error) {
+        console.warn("Route API unavailable. Falling back to straight guide route.", error);
+        return {
+          source: "straight",
+          usedFallback: true,
+          distanceMeters: Math.round(haversineKm(start.lat, start.lng, end.lat, end.lng) * 1000),
+          durationSeconds: 0,
+          coordinates: [start, end]
+        };
+      }
+    }
+
+    function compactRouteForRequest(points) {
+      if (!points.length) return [];
+      const limit = 40;
+      if (points.length <= limit) return points;
+      return Array.from({ length: limit }, (_, index) => {
+        const sourceIndex = Math.round(index * (points.length - 1) / (limit - 1));
+        return points[sourceIndex];
+      });
+    }
+
+    async function fetchPlacesFromBackend(query, lat, lng) {
+      if (activeController) activeController.abort();
+      activeController = new AbortController();
+
+      try {
+        const params = new URLSearchParams({
+          query,
+          lat: String(lat),
+          lng: String(lng),
+          startName: startPoint?.name || "",
+          endName: endPoint?.name || "",
+          startAddress: startPoint?.address || "",
+          endAddress: endPoint?.address || "",
+          startLat: String(startPoint?.lat || ""),
+          startLng: String(startPoint?.lng || ""),
+          endLat: String(endPoint?.lat || ""),
+          endLng: String(endPoint?.lng || ""),
+          detourKm: document.getElementById("detourRange")?.value || "1.2",
+          route: JSON.stringify(compactRouteForRequest(routeData?.coordinates || []))
+        });
+        const response = await fetch(`/api/places?${params.toString()}`, { signal: activeController.signal });
+        if (!response.ok) throw new Error(`Backend request failed: ${response.status}`);
+        const data = await response.json();
+        return { places: Array.isArray(data) ? data : data.places || [], usedDemo: false };
+      } catch (error) {
+        if (error.name === "AbortError") throw error;
+        console.warn("Backend unavailable. Falling back to demoPlaces.", error);
+        return { places: getDemoPlaces(), usedDemo: true };
+      }
+    }
+
+    async function fetchPlaceSearchFromBackend(query, signal) {
+      const params = new URLSearchParams({ query });
+      const response = await fetch(`/api/search-place?${params.toString()}`, { signal });
+      if (!response.ok) throw new Error(`Place search failed: ${response.status}`);
+      const data = await response.json();
+      return Array.isArray(data) ? data : data.places || [];
+    }
+
+    function normalizePlace(place) {
+      const text = [place.name, place.category, place.address, place.description, stripHtml(place.html || "")].filter(Boolean).join(" ");
+      const tags = dedupe([...(place.tags || []), ...guessTags(text)]);
+      return {
+        ...place,
+        name: stripHtml(place.name || place.title || "이름 없는 장소"),
+        category: stripHtml(place.category || place.type || "문화공간"),
+        address: stripHtml(place.address || place.roadAddress || ""),
+        description: stripHtml(place.description || place.summary || ""),
+        lat: Number(place.lat ?? place.latitude ?? place.y),
+        lng: Number(place.lng ?? place.longitude ?? place.x),
+        reviewCount: Number(place.reviewCount || place.reviews || 0),
+        tags,
+        stay: Number(place.stay || guessStayTime(text)),
+        detour: Number(place.detour || guessDetour(place)),
+        text
+      };
+    }
+
+    function hasValidPosition(place) {
+      return Number.isFinite(place.lat) && Number.isFinite(place.lng);
+    }
+
+    function rankPlaces(places, options) {
+      const scoredPlaces = places.filter(hasValidPosition).map((place) => {
+        const scored = calculateCultureScore(place, options);
+        return { ...place, ...scored, detour: estimateDetourMinutes(place, scored), reason: buildReason(place, scored) };
+      });
+      return applyDiversityPenalty(scoredPlaces
+        .filter(isCmrsCandidate)
+        .sort((a, b) => b.cultureScore - a.cultureScore));
+    }
+
+    function calculateCultureScore(place, options) {
+      const text = getNaverPlaceText(place);
+      const detourKm = Math.max(0.1, Number(options.detourKm || 1.2));
+      const routeDetourPx = distanceToActiveRoute(place, options.startPoint, options.endPoint);
+      const routeCorridorPx = calculateRouteCorridorPx(options.startPoint, options.endPoint, options.map);
+      const routeProgressValue = routeProgress(place, options.startPoint, options.endPoint, options.map);
+      const routeProgressRawValue = routeProgressRaw(place, options.startPoint, options.endPoint, options.map);
+      const routeDetourRatio = routeCorridorPx ? routeDetourPx / routeCorridorPx : 1;
+      const distanceFromRouteKm = Number.isFinite(Number(place.distanceFromRouteKm))
+        ? Number(place.distanceFromRouteKm)
+        : routeDetourPxToKm(routeDetourPx, options.startPoint, options.endPoint, options.map);
+      const culturalFit = keywordRatio(text, CULTURE_KEYWORDS);
+      const marginality = calculateMarginality(place, text);
+      const routeFit = calculateRouteFit(distanceFromRouteKm, detourKm);
+      const interestMatch = calculateInterestMatch(place, options.interest);
+      const localIndependence = keywordRatio(text, LOCAL_INDEPENDENT_KEYWORDS);
+      const penalty = calculateCmrsPenalty(place, text);
+      const modeBoost = getModeBoost(options.mode, {
+        culturalFit,
+        marginality,
+        routeFit,
+        interestMatch,
+        localIndependence,
+        penalty
+      });
+      const rawScore = 100 * (
+        0.30 * culturalFit +
+        0.25 * marginality +
+        0.20 * routeFit +
+        0.15 * interestMatch +
+        0.10 * localIndependence
+      ) + CMRS_BASE_SCORE - penalty + modeBoost;
+      const cultureScore = Math.round(clamp(rawScore, 0, 100));
+
+      return {
+        cultureScore,
+        cmrsScore: cultureScore,
+        culturalFit,
+        marginality,
+        routeFit,
+        interestMatch,
+        localIndependence,
+        penalty,
+        distanceFromRouteKm,
+        pathFit: routeFit * 100,
+        detourPenalty: penalty,
+        routeDetourPx,
+        routeCorridorPx,
+        routeDetourRatio,
+        routeProgress: routeProgressValue,
+        routeProgressRaw: routeProgressRawValue
+      };
+    }
+
+    function getModeBoost(mode, score) {
+      if (mode === "fast") return score.routeFit * 8 - score.penalty * 0.1;
+      if (mode === "treasure") return score.marginality * 12 + score.localIndependence * 8;
+      if (mode === "heritage") return score.culturalFit * 8;
+      return 0;
+    }
+
+    function getNaverPlaceText(place) {
+      const raw = place.raw || {};
+      return [
+        raw.title,
+        raw.category,
+        raw.description,
+        raw.address,
+        raw.roadAddress,
+        place.name,
+        place.category,
+        place.description,
+        place.address
+      ].filter(Boolean).join(" ").toLowerCase();
+    }
+
+    function isCmrsCandidate(place) {
+      return !place.hardFiltered
+        && place.cultureScore >= CMRS_OTHER_THRESHOLD
+        && Number(place.distanceFromRouteKm) <= Number(document.getElementById("detourRange")?.value || 1.2)
+        && place.routeProgressRaw >= -0.05
+        && place.routeProgressRaw <= 1.05;
+    }
+
+    function keywordRatio(text, keywords) {
+      if (!keywords.length) return 0;
+      const hits = keywords.filter((word) => text.includes(word.toLowerCase())).length;
+      return clamp(hits / Math.min(5, keywords.length), 0, 1);
+    }
+
+    function calculateMarginality(place, text) {
+      if (MAINSTREAM_BRANDS.some((word) => text.includes(word.toLowerCase()))) return 0.05;
+      const marginal = keywordRatio(text, MARGINAL_KEYWORDS);
+      const culture = keywordRatio(text, CULTURE_KEYWORDS);
+      const broadMainstreamPenalty = /(핫플|관광명소|대형|종합|복합몰|프랜차이즈)/.test(text) ? 0.24 : 0;
+      const broadHitPenalty = calculateExposurePenalty(place) / 100;
+      return clamp(0.48 + marginal * 0.46 + culture * 0.12 - broadMainstreamPenalty - broadHitPenalty, 0, 1);
+    }
+
+    function calculateRouteFit(distanceFromRouteKm, detourKm) {
+      if (!Number.isFinite(distanceFromRouteKm)) return 0;
+      if (distanceFromRouteKm > detourKm) return 0;
+      const sigma = Math.max(0.08, detourKm / 2);
+      return clamp(Math.exp(-((distanceFromRouteKm / sigma) ** 2)), 0, 1);
+    }
+
+    function calculateCmrsPenalty(place, text) {
+      if (HARD_FILTER_KEYWORDS.some((word) => text.includes(word.toLowerCase()))) {
+        place.hardFiltered = true;
+        return 100;
+      }
+      let penalty = 0;
+      if (MAINSTREAM_BRANDS.some((word) => text.includes(word.toLowerCase()))) penalty += 85;
+      if (/(백화점|쇼핑몰|멀티플렉스|대형서점|프랜차이즈|체인점|직영점|가맹점)/.test(text)) penalty += 55;
+      penalty += calculateExposurePenalty(place);
+      if (/(공방)/.test(text) && /(마라|요리|식당|중식|음식|맛집)/.test(text)) {
+        place.hardFiltered = true;
+        return 100;
+      }
+      return penalty;
+    }
+
+    function calculateExposurePenalty(place) {
+      const broadHits = Number(place.broadHits || 0);
+      const nicheHits = Number(place.nicheHits || 0);
+      const broadExposure = Number(place.broadExposure || 0);
+      const nicheExposure = Number(place.nicheExposure || 0);
+      const broadDominance = Math.max(0, broadHits - nicheHits);
+      const exposureDominance = Math.max(0, broadExposure - nicheExposure * 0.65);
+      let penalty = broadDominance * 14 + exposureDominance * 22;
+      if (broadHits >= 2 && nicheHits === 0) penalty += 18;
+      if (broadHits >= 3) penalty += 16;
+      if (broadExposure >= 1.8) penalty += 18;
+      return clamp(penalty, 0, 72);
+    }
+
+    function routeDetourPxToKm(px, start, end, leafletMap) {
+      if (!start || !end || !Number.isFinite(px)) return 0;
+      const center = getRouteCenter(start, end);
+      const edge = leafletMap.layerPointToLatLng(leafletMap.latLngToLayerPoint([center.lat, center.lng]).add(L.point(px, 0)));
+      return haversineKm(center.lat, center.lng, edge.lat, edge.lng);
+    }
+
+    function applyDiversityPenalty(places) {
+      const categoryCounts = new Map();
+      const brandCounts = new Map();
+      return places.map((place) => {
+        const categoryKey = normalizeDiversityKey(place.category || "");
+        const brandKey = getBrandKey(place);
+        const categorySeen = categoryCounts.get(categoryKey) || 0;
+        const brandSeen = brandCounts.get(brandKey) || 0;
+        const diversityPenalty = categorySeen * 5 + brandSeen * 14;
+        categoryCounts.set(categoryKey, categorySeen + 1);
+        brandCounts.set(brandKey, brandSeen + 1);
+        return { ...place, diversityPenalty, cultureScore: Math.round(clamp(place.cultureScore - diversityPenalty, 0, 100)) };
+      }).filter((place) => place.cultureScore >= CMRS_OTHER_THRESHOLD).sort((a, b) => b.cultureScore - a.cultureScore);
+    }
+
+    function normalizeDiversityKey(value) {
+      return String(value || "기타").split(/[>\\/|]/)[0].trim().toLowerCase() || "기타";
+    }
+
+    function getBrandKey(place) {
+      const text = getNaverPlaceText(place);
+      return MAINSTREAM_BRANDS.find((brand) => text.includes(brand.toLowerCase())) || normalizeDiversityKey(place.name).slice(0, 8);
+    }
+
+    function estimateDetourMinutes(place, scored) {
+      const km = Number(place.distanceFromRouteKm);
+      if (Number.isFinite(km) && km > 0) return Math.round(clamp(km * 12, 3, 22));
+      return Math.round(clamp(scored.routeDetourPx / 18, 4, 30));
+    }
+
+    function calculatePathFit(place, start, end, leafletMap) {
+      const px = distanceToActiveRoute(place, start, end);
+      const corridor = calculateRouteCorridorPx(start, end, leafletMap);
+      return clamp(100 - (px / corridor) * 100, 0, 100);
+    }
+
+    function calculateDetourPenalty(place, start, end, leafletMap) {
+      const px = distanceToActiveRoute(place, start, end);
+      const corridor = calculateRouteCorridorPx(start, end, leafletMap);
+      return clamp((px / corridor) * 28, 0, 45);
+    }
+
+    function calculateInterestMatch(place, interest) {
+      if (!interest) return 0;
+      const words = dedupe(interest.toLowerCase().split(/[\s,]+/).filter(Boolean));
+      if (!words.length) return 0;
+      const text = getNaverPlaceText(place);
+      const hits = words.filter((word) => text.includes(word)).length;
+      return clamp(hits / words.length, 0, 1);
+    }
+
+    function routeProgress(place, start, end, leafletMap) {
+      return clamp(routeProgressRaw(place, start, end, leafletMap), 0, 1);
+    }
+
+    function routeProgressRaw(place, start, end, leafletMap) {
+      if (!start || !end || !hasValidPosition(place)) return 0;
+      if (routeData?.coordinates?.length > 1) return routeProgressOnActiveRoute(place);
+      const point = leafletMap.latLngToLayerPoint([place.lat, place.lng]);
+      const a = leafletMap.latLngToLayerPoint([start.lat, start.lng]);
+      const b = leafletMap.latLngToLayerPoint([end.lat, end.lng]);
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const lineLength = dx * dx + dy * dy;
+      if (lineLength === 0) return 0;
+      return ((point.x - a.x) * dx + (point.y - a.y) * dy) / lineLength;
+    }
+
+    function calculateRouteCorridorPx(start, end, leafletMap) {
+      if (!start || !end) return 90;
+      const detourKm = Number(document.getElementById("detourRange")?.value || 1.2);
+      const center = getRouteCenter(start, end);
+      const edge = { lat: center.lat, lng: center.lng + detourKm / (111.32 * Math.cos(center.lat * Math.PI / 180)) };
+      const centerPoint = leafletMap.latLngToLayerPoint([center.lat, center.lng]);
+      const edgePoint = leafletMap.latLngToLayerPoint([edge.lat, edge.lng]);
+      const realCorridor = distance(centerPoint, edgePoint);
+      if (Number.isFinite(realCorridor) && realCorridor > 0) return clamp(realCorridor, 60, 260);
+      const a = leafletMap.latLngToLayerPoint([start.lat, start.lng]);
+      const b = leafletMap.latLngToLayerPoint([end.lat, end.lng]);
+      return clamp(distance(a, b) * 0.16, 80, 170);
+    }
+
+    function isNearRouteCandidate(place) {
+      return place.routeProgressRaw >= -0.05 && place.routeProgressRaw <= 1.05 && place.routeDetourRatio <= 1.15;
+    }
+
+    function pickPlaces(ranked, budget, desiredCount = 3) {
+      const maxCount = clamp(desiredCount, 1, 5);
+      const candidates = ranked.slice(0, 36);
+      let best = [];
+      let bestScore = -Infinity;
+
+      function visit(startIndex, combo) {
+        const used = combo.reduce((sum, place) => sum + place.stay + place.detour, 0);
+        if (used > budget || combo.length > maxCount) return;
+        if (combo.length) {
+          const countGap = Math.abs(maxCount - combo.length);
+          const score = combo.reduce((sum, place) => sum + place.cultureScore, 0)
+            + combo.length * 10
+            + routeCoverageScore(combo, maxCount)
+            - clusterPenalty(combo)
+            - countGap * 16;
+          if (score > bestScore) {
+            best = [...combo];
+            bestScore = score;
+          }
+        }
+        if (combo.length === maxCount) return;
+        for (let index = startIndex; index < candidates.length; index += 1) {
+          visit(index + 1, [...combo, candidates[index]]);
+        }
+      }
+
+      visit(0, []);
+      if (!best.length && ranked.length) best = [ranked[0]];
+      return best.sort((a, b) => routeProgress(a, startPoint, endPoint, map) - routeProgress(b, startPoint, endPoint, map));
+    }
+
+    function routeCoverageScore(combo, desiredCount) {
+      if (!combo.length) return 0;
+      const progresses = combo.map((place) => routeProgress(place, startPoint, endPoint, map)).sort((a, b) => a - b);
+      const anchors = Array.from({ length: combo.length }, (_, index) => (index + 1) / (combo.length + 1));
+      const targetFit = progresses.reduce((sum, progress, index) => sum + (1 - Math.min(1, Math.abs(progress - anchors[index]) * 2.8)), 0);
+      const span = progresses.length > 1 ? progresses[progresses.length - 1] - progresses[0] : 0;
+      const middlePresence = progresses.some((progress) => progress >= 0.35 && progress <= 0.65) ? 1 : 0;
+      const endBalance = Math.min(...progresses) < 0.28 && Math.max(...progresses) > 0.72 ? 1 : 0;
+      return targetFit * 18 + span * 30 + middlePresence * 12 + endBalance * 10 + Math.min(combo.length, desiredCount) * 4;
+    }
+
+    function clusterPenalty(combo) {
+      if (combo.length < 2) return 0;
+      const progresses = combo.map((place) => routeProgress(place, startPoint, endPoint, map)).sort((a, b) => a - b);
+      let penalty = 0;
+      for (let index = 1; index < progresses.length; index += 1) {
+        const gap = progresses[index] - progresses[index - 1];
+        if (gap < 0.16) penalty += (0.16 - gap) * 140;
+      }
+      const average = progresses.reduce((sum, progress) => sum + progress, 0) / progresses.length;
+      if (average < 0.28 || average > 0.72) penalty += 18;
+      return penalty;
+    }
+
+    function pickOtherCandidates(ranked, selected, limit = 8) {
+      const selectedKeys = new Set(selected.map(placeKey));
+      return ranked
+        .filter((place) => !selectedKeys.has(placeKey(place)))
+        .slice(0, limit)
+        .sort((a, b) => b.cultureScore - a.cultureScore);
+    }
+
+    function drawMap(selected) {
+      clearRouteLayers();
+      const points = [startPoint, ...selected, endPoint].filter(Boolean).filter(hasValidPosition);
+      if (!points.length) return;
+
+      if (startPoint) routeMarkers.push(addMarker(startPoint, "start", "START"));
+      selected.forEach((point, index) => routeMarkers.push(addMarker(point, "place", String(index + 1))));
+      if (endPoint) routeMarkers.push(addMarker(endPoint, "end", "END"));
+
+      if (points.length >= 2) {
+        // 직선 연결 기반 프로토타입 경로입니다. 실제 도보 경로 계산은 별도 라우팅 API가 필요합니다.
+        const guidePoints = (routeData?.coordinates?.length ? routeData.coordinates : [startPoint, endPoint]).filter(hasValidPosition);
+        routeLine = L.polyline(guidePoints.map((point) => [point.lat, point.lng]), {
+          color: "#76a9cf",
+          weight: 6,
+          opacity: 0.72,
+          lineCap: "round",
+          lineJoin: "round"
+        }).addTo(map);
+        treasureLine = L.polyline(points.map((point) => [point.lat, point.lng]), {
+          color: "#57b881",
+          weight: 7,
+          opacity: 0.9,
+          dashArray: "2 12",
+          lineCap: "round",
+          lineJoin: "round"
+        }).addTo(map);
+        map.fitBounds(treasureLine.getBounds().extend(routeLine.getBounds()), { padding: [46, 46] });
+      }
+    }
+
+    function addMarker(point, kind, label) {
+      return L.marker([point.lat, point.lng], {
+        icon: L.divIcon({
+          html: `<div class="marker-sign marker-${kind}">${label}</div>`,
+          className: "",
+          iconSize: kind === "place" ? [38, 43] : [48, 47],
+          iconAnchor: kind === "place" ? [19, 40] : [24, 44]
+        })
+      }).bindPopup(`
+        <strong>${escapeHtml(point.name || label)}</strong><br>
+        ${point.category ? `분류: ${escapeHtml(point.category)}<br>` : ""}
+        ${point.address ? `주소: ${escapeHtml(point.address)}<br>` : ""}
+        ${point.cultureScore !== undefined ? `숨은 문화 점수: ${point.cultureScore}` : ""}
+      `).addTo(map);
+    }
+
+    function drawRecommendations(selected) {
+      const box = document.getElementById("recommendations");
+      window.currentSelectedPlaces = selected;
+      if (!selected.length) {
+        showPlaceDetail(null);
+        box.innerHTML = `
+          <li>
+            <span class="rank">?</span>
+            <div class="empty-state">
+              <div class="icon">⌕</div>
+              <p class="place-name">아직 추천 결과가 없어요</p>
+              <p class="place-reason">START와 END를 설정한 뒤 보물길 추천을 누르면, 살짝 돌아가도 좋은 문화공간을 찾아드릴게요.</p>
+            </div>
+          </li>`;
+        return;
+      }
+
+      box.innerHTML = selected.map((place, index) => `
+        <li onclick="showPlaceDetailByIndex(${index})">
+          <span class="rank">${index + 1}</span>
+          <div>
+            <p class="place-name">${escapeHtml(place.name)}</p>
+            <p class="place-reason">${escapeHtml(place.reason)}</p>
+            <div class="meta">
+              ${place.tags.map((tag) => `<span>${tagLabel(tag)}</span>`).join("")}
+              <span>체류 ${place.stay}분</span>
+              <span>우회 ${place.detour}분</span>
+              <span>경로 ${formatRouteDistance(place)}</span>
+              <span>${escapeHtml(place.source === "openstreetmap" ? "OSM 실제 장소" : "네이버 실제 장소")}</span>
+              ${place.category ? `<span>${escapeHtml(place.category)}</span>` : ""}
+            </div>
+          </div>
+          <div class="hidden-score">
+            <strong>${place.cultureScore}</strong>
+            <span>숨은 점수</span>
+          </div>
+        </li>`).join("");
+    }
+
+    function drawOtherCandidates(candidates) {
+      const box = document.getElementById("otherCandidates");
+      if (!box) return;
+      window.currentOtherCandidates = candidates;
+      otherCandidateMarkers.forEach((marker) => marker.remove());
+      otherCandidateMarkers = [];
+
+      if (!candidates.length) {
+        box.innerHTML = `
+          <li>
+            <span class="rank">+</span>
+            <div class="empty-state">
+              <p class="place-name">추가 후보가 없어요</p>
+              <p class="place-reason">우회 허용 범위를 넓히거나 찾을 곳을 더 선택하면 후보가 늘어납니다.</p>
+            </div>
+          </li>`;
+        return;
+      }
+
+      otherCandidateMarkers = candidates.filter(hasValidPosition).map((place, index) => L.marker([place.lat, place.lng], {
+        icon: L.divIcon({
+          html: `<div class="marker-sign marker-other">+${index + 1}</div>`,
+          className: "",
+          iconSize: [30, 36],
+          iconAnchor: [15, 34]
+        })
+      }).bindPopup(`<strong>${escapeHtml(place.name)}</strong><br>${escapeHtml(place.category || "")}<br>候補 점수 ${place.cultureScore}`).addTo(map));
+
+      box.innerHTML = candidates.map((place, index) => `
+        <li onclick="showOtherCandidateByIndex(${index})">
+          <span class="rank">+${index + 1}</span>
+          <div>
+            <p class="place-name">${escapeHtml(place.name)}</p>
+            <p class="place-reason">${escapeHtml(place.reason)}</p>
+            <div class="meta">
+              ${place.tags.map((tag) => `<span>${tagLabel(tag)}</span>`).join("")}
+              <span>경로 ${formatRouteDistance(place)}</span>
+              <span>${escapeHtml(place.category || "문화공간")}</span>
+            </div>
+          </div>
+          <div class="hidden-score">
+            <strong>${place.cultureScore}</strong>
+            <span>후보 점수</span>
+          </div>
+        </li>`).join("");
+    }
+
+    function clearMap() {
+      startPoint = null;
+      endPoint = null;
+      routeData = null;
+      clearRouteLayers();
+      drawRecommendations([]);
+      drawOtherCandidates([]);
+      showPlaceDetail(null);
+      setCounts(0, 0, 0);
+      document.getElementById("startLabel").textContent = "미설정";
+      document.getElementById("endLabel").textContent = "미설정";
+      setStatus("지도를 깨끗하게 비웠어요. START와 END를 다시 골라주세요.", "info");
+    }
+
+    function refreshRecommendationState() {
+      routeData = null;
+      clearRouteLayers();
+      drawRecommendations([]);
+      drawOtherCandidates([]);
+      setCounts(0, 0, 0);
+    }
+
+    function clearRouteLayers() {
+      if (routeLine) routeLine.remove();
+      routeLine = null;
+      if (treasureLine) treasureLine.remove();
+      treasureLine = null;
+      routeMarkers.forEach((marker) => marker.remove());
+      routeMarkers = [];
+      otherCandidateMarkers.forEach((marker) => marker.remove());
+      otherCandidateMarkers = [];
+    }
+
+    function drawDemoCandidateMarkers() {
+      candidateMarkers.forEach((marker) => marker.remove());
+      candidateMarkers = getDemoPlaces().filter(hasValidPosition).map((place) => L.marker([place.lat, place.lng], {
+        icon: L.divIcon({
+          html: `<div class="marker-sign marker-demo">·</div>`,
+          className: "",
+          iconSize: [24, 28],
+          iconAnchor: [12, 26]
+        })
+      }).bindPopup(`<strong>${escapeHtml(place.name)}</strong><br>${escapeHtml(place.category)}`).addTo(map));
+    }
+
+    function tagLabel(tag) {
+      return { local: "지역문화", indie: "독립창작", tradition: "전통", exhibition: "전시", book: "책방" }[tag] || tag;
+    }
+
+    function distance(a, b) {
+      return Math.hypot(a.x - b.x, a.y - b.y);
+    }
+
+    function distanceToActiveRoute(point, start, end) {
+      const points = routeData?.coordinates || [];
+      if (points.length < 2) return distanceToSegment(point, start, end);
+      let best = Infinity;
+      const p = map.latLngToLayerPoint([point.lat, point.lng]);
+      for (let index = 0; index < points.length - 1; index += 1) {
+        const a = map.latLngToLayerPoint([points[index].lat, points[index].lng]);
+        const b = map.latLngToLayerPoint([points[index + 1].lat, points[index + 1].lng]);
+        best = Math.min(best, distancePointToSegmentPoint(p, a, b));
+      }
+      return best;
+    }
+
+    function routeProgressOnActiveRoute(point) {
+      const points = routeData?.coordinates || [];
+      if (points.length < 2) return 0;
+      const p = map.latLngToLayerPoint([point.lat, point.lng]);
+      let total = 0;
+      const lengths = [];
+      for (let index = 0; index < points.length - 1; index += 1) {
+        const a = map.latLngToLayerPoint([points[index].lat, points[index].lng]);
+        const b = map.latLngToLayerPoint([points[index + 1].lat, points[index + 1].lng]);
+        const length = distance(a, b);
+        lengths.push(length);
+        total += length;
+      }
+      if (!total) return 0;
+      let walked = 0;
+      let best = { distance: Infinity, progress: 0 };
+      for (let index = 0; index < points.length - 1; index += 1) {
+        const a = map.latLngToLayerPoint([points[index].lat, points[index].lng]);
+        const b = map.latLngToLayerPoint([points[index + 1].lat, points[index + 1].lng]);
+        const projected = projectLayerPointToSegment(p, a, b);
+        const d = distance(p, projected);
+        if (d < best.distance) best = { distance: d, progress: (walked + lengths[index] * projected.t) / total };
+        walked += lengths[index];
+      }
+      return best.progress;
+    }
+
+    function distancePointToSegmentPoint(point, start, end) {
+      return distance(point, projectLayerPointToSegment(point, start, end));
+    }
+
+    function projectLayerPointToSegment(point, start, end) {
+      const lineLength = distance(start, end) ** 2;
+      if (lineLength === 0) return { ...start, t: 0 };
+      const t = Math.max(0, Math.min(1, ((point.x - start.x) * (end.x - start.x) + (point.y - start.y) * (end.y - start.y)) / lineLength));
+      return { x: start.x + t * (end.x - start.x), y: start.y + t * (end.y - start.y), t };
+    }
+
+    function distanceToSegment(point, start, end) {
+      const p = map.latLngToLayerPoint([point.lat, point.lng]);
+      const a = map.latLngToLayerPoint([start.lat, start.lng]);
+      const b = map.latLngToLayerPoint([end.lat, end.lng]);
+      const lineLength = distance(a, b) ** 2;
+      if (lineLength === 0) return distance(p, a);
+      const t = Math.max(0, Math.min(1, ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / lineLength));
+      return distance(p, { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) });
+    }
+
+    function guessTags(text) {
+      const lower = String(text || "").toLowerCase();
+      const tags = [];
+      if (/(로컬|지역|동네|골목|마을|시장)/.test(lower)) tags.push("local");
+      if (/(독립|인디|창작|작가|공방|소규모)/.test(lower)) tags.push("indie");
+      if (/(전통|문화재|역사|근대|한옥|공예)/.test(lower)) tags.push("tradition");
+      if (/(전시|갤러리|미술|아트|박물관|문화공간)/.test(lower)) tags.push("exhibition");
+      if (/(책|서점|책방|출판|문학)/.test(lower)) tags.push("book");
+      return tags.length ? tags : ["local"];
+    }
+
+    function guessStayTime(text) {
+      const lower = String(text || "").toLowerCase();
+      if (/(박물관|전시|갤러리|미술관|문화공간)/.test(lower)) return 35;
+      if (/(책|서점|책방|공방)/.test(lower)) return 25;
+      return 20;
+    }
+
+    function guessDetour(place) {
+      if (!startPoint || !endPoint || !hasValidPosition(place)) return 10;
+      return Math.round(clamp(distanceToSegment(place, startPoint, endPoint) / 18, 4, 30));
+    }
+
+    function buildReason(place) {
+      return createPlaceSummary(place);
+    }
+
+    function inferPlaceFeatures(place) {
+      const text = [
+        place.name,
+        place.category,
+        place.description,
+        place.address,
+        place.raw?.title,
+        place.raw?.category,
+        place.raw?.description,
+        place.raw?.address,
+        place.raw?.roadAddress
+      ].filter(Boolean).join(" ");
+
+      const features = [];
+      const activities = [];
+
+      if (/독립서점|책방|서점|출판|문학/.test(text)) {
+        features.push("독립 출판/지역 서점");
+        activities.push("큐레이션 도서 탐색");
+      }
+
+      if (/전시|갤러리|미술|아트|화랑/.test(text)) {
+        features.push("소규모 전시 공간");
+        activities.push("전시 관람");
+      }
+
+      if (/공방|작업실|공예|창작|작가/.test(text)) {
+        features.push("창작자 기반 공간");
+        activities.push("공예/제작 체험 가능성");
+      }
+
+      if (/소극장|공연|극장|연극|무대/.test(text)) {
+        features.push("지역 공연 공간");
+        activities.push("공연 관람");
+      }
+
+      if (/전통|문화재|역사|한옥|기념관|근대/.test(text)) {
+        features.push("전통/역사 문화 공간");
+        activities.push("문화유산 탐방");
+      }
+
+      if (/로컬|지역|동네|마을|생활문화|골목|커뮤니티|주민|아카이브/.test(text)) {
+        features.push("지역 기반 문화공간");
+        activities.push("동네 문화 탐색");
+      }
+
+      return {
+        features: features.length ? dedupe(features) : [place.category || "문화공간"],
+        activities: activities.length ? dedupe(activities) : ["문화적 장소 탐방"]
+      };
+    }
+
+    function createPlaceSummary(place) {
+      const { features, activities } = inferPlaceFeatures(place);
+      const category = place.category && !features.some((feature) => feature.includes(place.category))
+        ? ` (${place.category})`
+        : "";
+      return `${features.slice(0, 2).join(", ")}${category}으로 보이며, ${activities.slice(0, 2).join("이나 ")}을 해볼 수 있는 장소입니다.`;
+    }
+
+    function scoreByWords(text, words, weight) {
+      return words.some((word) => text.includes(word.toLowerCase())) ? weight : 0;
+    }
+
+    function setCounts(candidate, selected, used) {
+      document.getElementById("candidateCount").textContent = String(candidate);
+      document.getElementById("selectedCount").textContent = String(selected);
+      document.getElementById("usedTime").textContent = `${used}분`;
+    }
+
+    function getRouteCenter(start, end) {
+      return { lat: (start.lat + end.lat) / 2, lng: (start.lng + end.lng) / 2 };
+    }
+
+    function haversineKm(lat1, lng1, lat2, lng2) {
+      const r = 6371;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLng = (lng2 - lng1) * Math.PI / 180;
+      const a = Math.sin(dLat / 2) ** 2 +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng / 2) ** 2;
+      return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    }
+
+    function clamp(value, min, max) {
+      return Math.max(min, Math.min(max, Number(value) || 0));
+    }
+
+    function dedupe(values) {
+      return [...new Set(values.filter(Boolean))];
+    }
+
+    function stripHtml(value) {
+      const element = document.createElement("div");
+      element.innerHTML = String(value || "");
+      return element.textContent || element.innerText || "";
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+    }
+
+    function getDemoPlaces() {
+      return demoPlaces.map((place) => normalizePlace({ ...place }));
+    }
+
+    function placeKey(place) {
+      return `${place.name}|${place.address}|${Number(place.lat).toFixed(5)}|${Number(place.lng).toFixed(5)}`;
+    }
+
+    function goToPlace(lat, lng) {
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        map.setView([lat, lng], map.getZoom(), { animate: true });
+      }
+    }
+
+    function showPlaceDetailByIndex(index) {
+      const place = window.currentSelectedPlaces?.[index];
+      if (!place) return;
+      goToPlace(place.lat, place.lng);
+      showPlaceDetail(place);
+    }
+
+    function showOtherCandidateByIndex(index) {
+      const place = window.currentOtherCandidates?.[index];
+      if (!place) return;
+      goToPlace(place.lat, place.lng);
+      otherCandidateMarkers[index]?.openPopup();
+      showPlaceDetail(place);
+    }
+
+    function showPlaceDetail(place) {
+      const panel = document.getElementById("detailPanel");
+      const body = document.getElementById("detailBody");
+      if (!panel || !body) return;
+      if (!place) {
+        panel.classList.remove("show");
+        body.innerHTML = "";
+        return;
+      }
+      panel.classList.add("show");
+      const placeFeatures = inferPlaceFeatures(place);
+      body.innerHTML = `
+        <p class="detail-title">${escapeHtml(place.name)}</p>
+        <p>${escapeHtml(place.reason || createPlaceSummary(place))}</p>
+        <p><strong>공간 성격</strong> ${placeFeatures.features.map(escapeHtml).join(", ")}</p>
+        <p><strong>해볼 일</strong> ${placeFeatures.activities.map(escapeHtml).join(", ")}</p>
+        <p><strong>분류</strong> ${escapeHtml(place.category || "문화공간")}</p>
+        <p><strong>주소</strong> ${escapeHtml(place.address || "주소 정보 없음")}</p>
+        <p><strong>경로 이탈</strong> ${formatRouteDistance(place)} · <strong>예상 체류</strong> ${place.stay}분 · <strong>우회</strong> ${place.detour}분</p>
+        <p><strong>데이터</strong> ${escapeHtml(place.source === "openstreetmap" ? "OpenStreetMap 실제 장소" : "네이버 지역검색 실제 장소")}</p>
+        ${place.link ? `<a class="detail-link" href="${escapeHtml(place.link)}" target="_blank" rel="noreferrer">네이버에서 자세히 보기</a>` : ""}
+      `;
+    }
+
+    function formatRouteDistance(place) {
+      const km = Number(place.distanceFromRouteKm);
+      if (Number.isFinite(km) && km > 0) return km < 1 ? `${Math.round(km * 1000)}m` : `${km.toFixed(1)}km`;
+      const px = Number(place.routeDetourPx || 0);
+      return px ? `약 ${Math.round(place.detour)}분` : "가까움";
+    }
+
+    function moveToMyLocation() {
+      if (!navigator.geolocation) return setStatus("이 브라우저에서는 위치 기능을 사용할 수 없어요.", "error");
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          map.setView([position.coords.latitude, position.coords.longitude], 10.5);
+          setStatus("현재 위치로 이동했어요. 주변 장소를 검색해볼 수 있습니다.", "success");
+        },
+        () => setStatus("현재 위치를 가져오지 못했어요. 브라우저 위치 권한을 확인해주세요.", "error"),
+        { enableHighAccuracy: true, timeout: 7000 }
+      );
+    }
+
+    function setStatus(message, type = "info") {
+      const status = document.getElementById("status");
+      status.textContent = message;
+      status.className = `status ${type === "info" ? "" : type}`;
+    }
+
+    function setupMinigameUI() {
+      if (typeof KoreaCultureMinigames === "undefined") {
+        console.warn("KoreaCultureMinigames not loaded");
+        return;
+      }
+    }
+
+    function startMinigame(regionKey) {
+      console.log("startMinigame called with:", regionKey);
+      console.log("Available games:", Object.keys(REGION_GAMES));
+
+      if (typeof KoreaCultureMinigames === "undefined") {
+        console.error("KoreaCultureMinigames is not defined");
+        setStatus("미니게임을 불러올 수 없어요. korea-culture-minigames-kit.js 로드 실패.", "error");
+        return;
+      }
+
+      if (!REGION_GAMES[regionKey]) {
+        console.error(`Game not found for region: ${regionKey}. Available games:`, Object.keys(REGION_GAMES));
+        setStatus(`${regionKey} 게임을 찾을 수 없어요. 사용 가능한 게임: ${Object.keys(REGION_GAMES).join(", ")}`, "error");
+        return;
+      }
+
+      const container = document.getElementById("minigameContainer");
+      if (!container) {
+        console.error("minigameContainer not found");
+        setStatus("미니게임 컨테이너를 찾을 수 없어요.", "error");
+        return;
+      }
+
+      try {
+        container.innerHTML = "";
+        const innerContainer = document.createElement("div");
+        container.appendChild(innerContainer);
+        container.style.display = "flex";
+        container.style.flexDirection = "row";
+
+        minigameInstance = KoreaCultureMinigames.create({
+          window: window,
+          document: document,
+          container: innerContainer,
+          games: REGION_GAMES,
+          onComplete: (payload) => {
+            console.log("Minigame completed:", payload);
+            handleMinigameComplete(payload);
+          },
+          onClose: () => {
+            console.log("Minigame closed");
+            closeMinigame();
+          },
+          onFeedback: (payload) => {
+            console.log("Minigame feedback:", payload.message);
+          }
+        });
+
+        console.log("Starting minigame with key:", regionKey);
+        minigameInstance.start(regionKey);
+        setStatus(`🎮 ${regionKey} 미니게임 시작!`, "info");
+      } catch (error) {
+        console.error("Failed to start minigame:", error);
+        setStatus("미니게임 시작에 실패했어요: " + error.message, "error");
+        closeMinigame();
+      }
+    }
+
+    function handleMinigameComplete(payload) {
+      const { regionKey, cards } = payload;
+      cards.forEach((card) => unlockedCulturalCards.add(card));
+
+      const regionNames = {
+        Seoul: "서울",
+        Daejeon: "대전",
+        Gwangju: "광주",
+        Busan: "부산",
+        Gangneung: "강릉",
+        Jeju: "제주"
+      };
+
+      setStatus(`🎉 ${regionNames[regionKey]} 미니게임 완료! 문화카드 해금됨: ${cards.join(", ")}`, "success");
+      showCultureRewardPopup(regionKey, {
+        regionKey,
+        mission: REGION_GAMES[regionKey]?.title || `${regionNames[regionKey] || regionKey} 미니게임`,
+      });
+
+      setTimeout(() => closeMinigame(), 2000);
+    }
+
+    function closeMinigame() {
+      const container = document.getElementById("minigameContainer");
+      container.style.display = "none";
+      if (minigameInstance) {
+        minigameInstance.destroy();
+        minigameInstance = null;
+      }
+    }
+
+    // 전역으로 startMinigame 함수 노출
+    window.startMinigame = startMinigame;
+
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>

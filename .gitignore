@@ -1,0 +1,9 @@
+.env
+.env.local
+node_modules/
+.playwright-mcp/
+*.log
+*.zip
+*.Zip
+jeju-*-check.png
+새 폴더/
