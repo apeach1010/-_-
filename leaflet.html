@@ -672,7 +672,11 @@
           Daejeon: { costumeImage: "아이템/대전_인벤토리.png" },
           Gwangju: { costumeImage: "아이템/광주_인벤토리.png" },
           Busan: { costumeImage: "아이템/부산_인벤토리.png" },
-          Jeju: { costumeImage: "아이템/제주도_인벤토리.png" },
+          Jeju: {
+            costumeImage: "아이템/제주도_인벤토리.png",
+            festivalImage: "festival/제주도.jpg",
+            festivalAlt: "제주 축제 이미지"
+          },
         },
         onInventoryAdd(reward) {
           document.dispatchEvent(new CustomEvent("leaflet:culture-reward-added", { detail: { reward } }));

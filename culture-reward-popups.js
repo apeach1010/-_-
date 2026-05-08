@@ -278,6 +278,7 @@
       this.rewardMeta.textContent = `${reward.regionName} 보상 의상`;
       this.rewardImage.src = reward.image;
       this.rewardImage.alt = `${reward.item} 인벤토리 이미지`;
+      this.setFestivalImage(this.rewardFestivalImage, reward.regionKey);
 
       this.openModal(this.rewardModal);
       return reward;
@@ -297,14 +298,7 @@
         region.festivalCopy ||
         `${region.label}의 문화 장소와 축제 정보를 찾아보고, 획득한 의상을 입고 지역을 탐험해 보세요.`;
 
-      if (key === "Jeju" && region.festivalImage) {
-        this.promoImage.src = region.festivalImage;
-        this.promoImage.alt = region.festivalAlt || `${region.label} 축제 이미지`;
-        this.promoImage.hidden = false;
-      } else {
-        this.promoImage.removeAttribute("src");
-        this.promoImage.hidden = true;
-      }
+      this.setFestivalImage(this.promoImage, key);
 
       this.openModal(this.promoModal);
       return region;
@@ -387,10 +381,12 @@
       const rewardText = this.createElement("div");
       this.rewardName = this.createElement("p", "crp-reward-name");
       this.rewardMeta = this.createElement("p", "crp-reward-meta");
+      this.rewardFestivalImage = this.createElement("img", "crp-festival-image");
+      this.rewardFestivalImage.hidden = true;
 
       rewardText.append(this.rewardName, this.rewardMeta);
       rewardCard.append(this.rewardImage, rewardText);
-      rewardPanel.append(rewardClose, this.rewardKicker, this.rewardTitle, this.rewardCopy, rewardCard);
+      rewardPanel.append(rewardClose, this.rewardKicker, this.rewardTitle, this.rewardCopy, rewardCard, this.rewardFestivalImage);
       this.rewardModal.append(rewardPanel);
 
       this.promoModal = this.createElement("div", "crp-modal");
@@ -439,9 +435,25 @@
     closeReward() {
       this.closeModal(this.rewardModal);
       this.rewardImage.removeAttribute("src");
+      this.rewardFestivalImage.removeAttribute("src");
+      this.rewardFestivalImage.hidden = true;
 
       if (this.closeRewardOpensPromo && this.activeReward) {
         this.showFestivalPromo(this.activeReward.regionKey);
+      }
+    }
+
+    setFestivalImage(imageElement, regionKey) {
+      const key = normalizeRegionKey(regionKey);
+      const region = this.regions[key];
+
+      if (key === "Jeju" && region && region.festivalImage) {
+        imageElement.src = region.festivalImage;
+        imageElement.alt = region.festivalAlt || `${region.label} 축제 이미지`;
+        imageElement.hidden = false;
+      } else {
+        imageElement.removeAttribute("src");
+        imageElement.hidden = true;
       }
     }
 
